@@ -8,6 +8,15 @@ export default function BarbershopPage() {
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Modal State
+  const [selectedBarber, setSelectedBarber] = useState(null);
+  const [step, setStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [bookingLoading, setBookingLoading] = useState(false);
+
   useEffect(() => {
     const fetchShop = async () => {
       try {
@@ -40,24 +49,79 @@ export default function BarbershopPage() {
     </div>
   );
 
-  // Mocked Staff based on user request referencing image_4f9260.jpg 
   const staff = [
     { name: "Luis F.", role: "Master Barber", image: "/image_4f9260.jpg" },
     { name: "Carlos M.", role: "Especialista en Barba", image: "/image_4f9260.jpg" },
     { name: "Kevin", role: "Tratamientos & Color", image: "/image_4f9260.jpg" }
   ];
 
-  const handleWhatsApp = (barbName) => {
-    const text = `Hola ${barbName}, quiero agendar mi cita en ${shop.business_name} (Mejía) por la app PeluLink!`;
-    const phone = shop.whatsapp.replace(/\D/g, '');
-    const cleanPhone = phone.startsWith('0') ? '58' + phone.substring(1) : phone;
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+  // Helper arrays for the calendar
+  const nextDays = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+  const timeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'];
+
+  const getDayName = (dateStr) => {
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const d = new Date(dateStr + 'T12:00:00');
+    return days[d.getDay()];
+  };
+
+  const handleOpenModal = (barberName) => {
+    setSelectedBarber(barberName);
+    setStep(1);
+    setSelectedDate('');
+    setSelectedTime('');
+    setClientName('');
+    setClientPhone('');
+  };
+
+  const handleBookAppointment = async () => {
+    if (!clientName || !clientPhone) return;
+    setBookingLoading(true);
+
+    try {
+      // 1. Guardar en Supabase
+      const { error } = await supabase
+        .from('reservas')
+        .insert([
+          {
+            barberia_id: shop.id,
+            barbero_name: selectedBarber,
+            fecha: selectedDate,
+            hora: selectedTime,
+            cliente_nombre: clientName,
+            cliente_telefono: clientPhone,
+            status: 'pendiente'
+          }
+        ]);
+
+      if (error) {
+        alert('Hubo un error al guardar tu reserva: ' + error.message);
+        setBookingLoading(false);
+        return;
+      }
+
+      // 2. Abrir WhatsApp
+      const text = `Hola ${selectedBarber}, soy ${clientName}. He agendado en PeluLink una cita para el ${selectedDate} a las ${selectedTime}. ¡Nos vemos pronto!`;
+      const phone = shop.whatsapp.replace(/\D/g, '');
+      const cleanPhone = phone.startsWith('0') ? '58' + phone.substring(1) : phone;
+      
+      setSelectedBarber(null); // Close modal
+      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión');
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#070707] text-white font-sans pb-20">
-      
-      {/* Banner / Fachada */}
+    <div className="min-h-screen bg-[#070707] text-white font-sans pb-20 relative">
       <div className="relative h-[40vh] md:h-[50vh] w-full bg-[#111] overflow-hidden">
         <img 
           src={shop.foto_url || "/image_4f9222.jpg"} 
@@ -67,7 +131,7 @@ export default function BarbershopPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#070707] via-[#070707]/60 to-transparent"></div>
         
-        <button onClick={() => navigate('/')} className="absolute top-6 left-6 bg-black/60 border border-white/10 backdrop-blur-md p-3 px-5 rounded-full text-gray-200 hover:text-white hover:border-white/30 transition-all font-semibold text-sm">
+        <button onClick={() => navigate('/explore')} className="absolute top-6 left-6 bg-black/60 border border-white/10 backdrop-blur-md p-3 px-5 rounded-full text-gray-200 hover:text-white hover:border-white/30 transition-all font-semibold text-sm z-50">
            ← Catálogo
         </button>
         
@@ -80,19 +144,13 @@ export default function BarbershopPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 md:px-12 mt-8">
-        
-        {/* Dirección y Detalle Corporativo */}
         <section className="mb-12 bg-[#111] border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 blur-[50px] rounded-full pointer-events-none"></div>
-          
           <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800/80 pb-4">Detalles del Negocio</h2>
           <p className="text-gray-400 leading-relaxed text-sm md:text-base max-w-3xl">
             Bienvenidos a su lugar de confianza en el corazón de <strong>{shop.municipality}</strong>. 
-            Representados magistralmente por <strong>{shop.owner_name}</strong>, nos comprometemos a entregarte 
-            la mejor experiencia de estilismo adaptada a los estándares de Barbería premium y clásica de 
-            San Antonio del Golfo.
+            Representados magistralmente por <strong>{shop.owner_name}</strong>.
           </p>
-          
           {shop.services && shop.services.length > 0 && (
             <div className="mt-8">
               <h3 className="text-xs uppercase tracking-widest text-[#D4AF37] font-bold mb-3">Especialidades</h3>
@@ -105,11 +163,10 @@ export default function BarbershopPage() {
           )}
         </section>
 
-        {/* El Equipo */}
         <section>
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-800/50">
             <h2 className="text-2xl md:text-4xl font-bold text-[#fcfcfc] tracking-wide">Nuestro Equipo</h2>
-            <span className="text-gray-500 font-semibold text-sm">Escoge a tu profesional</span>
+            <span className="text-gray-500 font-semibold text-sm hidden sm:inline-block">Escoge a tu profesional</span>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
@@ -128,7 +185,7 @@ export default function BarbershopPage() {
                 <p className="text-[#D4AF37] text-xs font-bold mb-8 uppercase tracking-widest relative z-10">{barber.role}</p>
                 
                 <button 
-                  onClick={() => handleWhatsApp(barber.name)}
+                  onClick={() => handleOpenModal(barber.name)}
                   className="w-full py-3.5 bg-[#111] border border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366] hover:text-black font-bold uppercase tracking-wider text-sm rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(37,211,102,0.05)] hover:shadow-[0_0_20px_rgba(37,211,102,0.3)] relative z-10"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.002 2.012c-5.508 0-9.98 4.473-9.98 9.984 0 1.748.455 3.454 1.32 4.957L2 22l5.197-1.34c1.464.814 3.12 1.246 4.805 1.246 5.506 0 9.98-4.475 9.98-9.985 0-5.51-4.474-9.984-9.98-9.984zm.006 16.516c-1.472 0-2.905-.39-4.16-1.127l-.3-.178-3.09.813.826-3.013-.196-.31c-.812-1.284-1.24-2.766-1.24-4.295 0-4.575 3.72-8.293 8.297-8.293 4.57 0 8.292 3.718 8.292 8.293 0 4.576-3.722 8.294-8.293 8.294zm4.553-6.222c-.25-.124-1.476-.726-1.705-.81-.228-.083-.396-.124-.562.124-.166.25-.644.81-.79 9.77-.145.166-.29.187-.54.062-.25-.124-1.054-.388-2.005-1.238-.74-.662-1.24-1.48-1.385-1.73-.146-.25-.016-.385.11-.51.112-.11.25-.29.375-.436.126-.146.167-.25.25-.417.084-.167.042-.313-.02-.438-.064-.124-.563-1.354-.77-1.854-.203-.49-.41-424-.562-.432-.146-.008-.313-.01-.48-.01-.166 0-.436.062-.664.312-.228.25-.873.854-.873 2.083 0 1.23.894 2.42 1.02 2.585.124.167 1.764 2.69 4.27 3.776.596.258 1.062.41 1.425.526.598.19 1.14.163 1.57.1.48-.07 1.476-.603 1.684-1.186.208-.584.208-1.084.146-1.187-.06-.104-.228-.166-.478-.29z"/></svg>
@@ -138,8 +195,119 @@ export default function BarbershopPage() {
             ))}
           </div>
         </section>
-
       </div>
+
+      {/* MODAL DE RESERVA */}
+      {selectedBarber && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-0 animate-[fadeIn_0.3s_ease-out]">
+          <div className="bg-[#111] border border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
+              <div>
+                <h3 className="text-xl font-bold text-white">Reserva con {selectedBarber}</h3>
+                <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Paso {step} de 2</p>
+              </div>
+              <button onClick={() => setSelectedBarber(null)} className="text-gray-500 hover:text-white p-2">✕</button>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              {step === 1 && (
+                <div className="animate-[slideIn_0.3s_ease-out]">
+                  <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">Elige tu Día</h4>
+                  <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar mb-8">
+                    {nextDays.map(date => (
+                      <button 
+                        key={date}
+                        onClick={() => setSelectedDate(date)}
+                        className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-all ${
+                          selectedDate === date ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50'
+                        }`}
+                      >
+                        <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">{getDayName(date)}</span>
+                        <span className="text-xl font-black mt-1">{date.split('-')[2]}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">Horarios Disponibles</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {timeSlots.map(time => (
+                      <button 
+                        key={time}
+                        onClick={() => setSelectedTime(time)}
+                        className={`py-3 rounded-xl border text-sm font-bold transition-all ${
+                          selectedTime === time ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50'
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="animate-[slideIn_0.3s_ease-out] flex flex-col gap-5">
+                  <div className="bg-[#1a1a1a] p-4 rounded-2xl border border-gray-800 flex justify-between items-center mb-2">
+                    <div className="text-sm text-gray-400">
+                      Cita el <strong className="text-white">{selectedDate}</strong> a las <strong className="text-[#D4AF37]">{selectedTime}</strong>
+                    </div>
+                    <button onClick={() => setStep(1)} className="text-[#D4AF37] text-xs underline font-bold">Cambiar</button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold tracking-wide text-gray-400">Tu Nombre Completo</label>
+                    <input 
+                      type="text" required placeholder="Ej. Juan Pérez"
+                      value={clientName} onChange={e => setClientName(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all font-medium"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold tracking-wide text-gray-400">Tu Número de WhatsApp</label>
+                    <input 
+                      type="tel" required placeholder="Ej. 0414 123 4567"
+                      value={clientPhone} onChange={e => setClientPhone(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all font-medium"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-800 bg-[#151515]">
+              {step === 1 ? (
+                <button 
+                  disabled={!selectedDate || !selectedTime}
+                  onClick={() => setStep(2)}
+                  className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
+                    selectedDate && selectedTime 
+                      ? 'bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
+                      : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+                  }`}
+                >
+                  Continuar
+                </button>
+              ) : (
+                <button 
+                  disabled={!clientName || !clientPhone || bookingLoading}
+                  onClick={handleBookAppointment}
+                  className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg flex justify-center items-center gap-2 ${
+                    clientName && clientPhone && !bookingLoading
+                      ? 'bg-[#25D366] text-black hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(37,211,102,0.4)]'
+                      : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+                  }`}
+                >
+                  {bookingLoading ? 'PROCESANDO...' : 'CONFIRMAR Y AGENDAR POR WHATSAPP'}
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -50,12 +50,20 @@ export default function Explore() {
           <p className="text-[#D4AF37] font-semibold tracking-widest uppercase mt-1 text-[10px] md:text-sm">La Plaza Mayor de Sucre</p>
         </div>
         
-        {/* Custom Dropdown for Municipality */}
-        <div className="relative w-full md:w-64 flex-shrink-0">
+        {/* RIGHT SIDE ACTIONS */}
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <button 
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="w-full bg-[#111] border border-[#D4AF37]/50 hover:border-[#D4AF37] text-gray-200 px-5 py-3 rounded-xl flex justify-between items-center transition-all shadow-lg"
+            onClick={() => navigate('/my-bookings')} 
+            className="text-gray-300 hover:text-[#D4AF37] transition-colors text-xs font-bold tracking-widest uppercase w-full md:w-auto text-center border-b border-gray-800 md:border-b-0 pb-3 md:pb-0"
           >
+            📋 Mis Reservas
+          </button>
+          
+          <div className="relative w-full md:w-64 flex-shrink-0">
+            <button 
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="w-full bg-[#111] border border-[#D4AF37]/50 hover:border-[#D4AF37] text-gray-200 px-5 py-3 rounded-xl flex justify-between items-center transition-all shadow-lg"
+            >
             <span className="font-bold text-sm md:text-base truncate tracking-wide">{selectedMuni}</span>
             <span className="text-[#D4AF37] text-[10px] ml-2 transition-transform duration-300 transform" style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
           </button>
@@ -85,6 +93,7 @@ export default function Explore() {
               </ul>
             </div>
           )}
+        </div>
         </div>
       </header>
 
