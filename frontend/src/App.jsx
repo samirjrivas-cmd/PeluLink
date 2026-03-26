@@ -12,7 +12,7 @@ import BarberDashboard from './pages/BarberDashboard';
 import Admin from './pages/Admin';
 import BusinessRegister from './pages/BusinessRegister';
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
@@ -31,5 +31,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-export default App;
