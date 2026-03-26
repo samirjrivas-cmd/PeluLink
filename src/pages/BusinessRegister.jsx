@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 const MUNICIPALITIES = [
   'Mejía', 'Sucre', 'Ribero', 'Mariño', 'Cajigal', 'Benítez', 
@@ -25,27 +26,31 @@ export default function BusinessRegister() {
     setLoading(true);
     try {
       const servicesArray = formData.services.split(',').map(s => s.trim()).filter(s => s);
-      const payload = { ...formData, services: servicesArray };
+      const slug = formData.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-      const apiUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000/api/barbershops' 
-        : '/api/barbershops';
+      // Inyección directa hacia Supabase en la Nube
+      const { data, error } = await supabase
+        .from('barbershops')
+        .insert([
+          {
+            business_name: formData.business_name,
+            owner_name: formData.owner_name,
+            municipality: formData.municipality,
+            whatsapp: formData.whatsapp,
+            services: servicesArray,
+            slug: slug
+          }
+        ]);
 
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await res.json();
-      if (res.ok) {
-        setFinalLink(`pelulink-app.vercel.app/${data.slug}`);
+      if (error) {
+        console.error('Supabase Error:', error);
+        alert('Error en Base de Datos: ' + error.message);
       } else {
-        alert('Error al registrar negocio.');
+        setFinalLink(`pelulink-app.vercel.app/${slug}`);
       }
     } catch (err) {
       console.error(err);
-      setFinalLink(`pelulink-app.vercel.app/${formData.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
+      alert('Falla en la red o base de datos no configurada.');
     } finally {
       setLoading(false);
     }
