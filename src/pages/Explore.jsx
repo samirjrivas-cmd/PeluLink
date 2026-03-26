@@ -116,7 +116,7 @@ export default function Explore() {
                 <div className="h-56 md:h-60 overflow-hidden relative border-b border-gray-800/50 group-hover:border-[#D4AF37]/30 transition-colors">
                   <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-[#111]/30 to-transparent z-10 opacity-90"></div>
                   <img 
-                    src="/image_4f9222.jpg" 
+                    src={shop.foto_url || "/image_4f9222.jpg"} 
                     onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=800&auto=format&fit=crop"; }}
                     alt={shop.business_name} 
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 

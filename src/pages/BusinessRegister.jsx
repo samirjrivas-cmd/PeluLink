@@ -20,6 +20,7 @@ export default function BusinessRegister() {
 
   const [loading, setLoading] = useState(false);
   const [finalLink, setFinalLink] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,6 +28,26 @@ export default function BusinessRegister() {
     try {
       const servicesArray = formData.services.split(',').map(s => s.trim()).filter(s => s);
       const slug = formData.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+      let publicImageUrl = '';
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const filePath = `${Date.now()}_${slug}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('fotos-barberias')
+          .upload(filePath, imageFile);
+          
+        if (uploadError) {
+          console.error('Blob Storage Error:', uploadError);
+          // If storage fails but the rest is okay, we gracefully continue or alert without entirely halting
+        } else {
+          const { data: publicData } = supabase.storage
+            .from('fotos-barberias')
+            .getPublicUrl(filePath);
+          publicImageUrl = publicData.publicUrl;
+        }
+      }
 
       // Inyección directa hacia Supabase en la Nube
       const { data, error } = await supabase
@@ -38,7 +59,8 @@ export default function BusinessRegister() {
             municipality: formData.municipality,
             whatsapp: formData.whatsapp,
             services: servicesArray,
-            slug: slug
+            slug: slug,
+            foto_url: publicImageUrl
           }
         ]);
 
@@ -116,6 +138,15 @@ export default function BusinessRegister() {
                   className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold tracking-wide text-gray-300">Foto de Fachada</label>
+              <input 
+                type="file" accept="image/*"
+                onChange={e => setImageFile(e.target.files[0])}
+                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-2.5 text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#D4AF37]/20 file:text-[#D4AF37] hover:file:bg-[#D4AF37]/30 transition-all text-sm cursor-pointer"
+              />
             </div>
 
             <div className="flex flex-col gap-2">

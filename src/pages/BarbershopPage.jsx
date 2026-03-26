@@ -60,7 +60,7 @@ export default function BarbershopPage() {
       {/* Banner / Fachada */}
       <div className="relative h-[40vh] md:h-[50vh] w-full bg-[#111] overflow-hidden">
         <img 
-          src="/image_4f9222.jpg" 
+          src={shop.foto_url || "/image_4f9222.jpg"} 
           onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=2000&auto=format&fit=crop"; }}
           alt={`Fachada de ${shop.business_name}`} 
           className="w-full h-full object-cover opacity-80"
