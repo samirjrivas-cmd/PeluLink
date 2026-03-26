@@ -11,6 +11,7 @@ import AdminRegister from './pages/AdminRegister';
 import BarberDashboard from './pages/BarberDashboard';
 import Admin from './pages/Admin';
 import BusinessRegister from './pages/BusinessRegister';
+import BarbershopPage from './pages/BarbershopPage';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/barbero/agenda" element={<BarberDashboard />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/registro-negocio" element={<BusinessRegister />} />
+        <Route path="/:slug" element={<BarbershopPage />} />
       </Routes>
     </BrowserRouter>
   );
