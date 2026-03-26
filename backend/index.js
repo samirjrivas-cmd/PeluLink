@@ -3,6 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
@@ -11,7 +12,15 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Set up storage for uploaded files into ../database/Uploads
+let pool;
+if (process.env.DATABASE_URL) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  console.log('🔗 Conectado a PostgreSQL / Supabase!');
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, path.join(__dirname, '../database/Uploads/'));
@@ -33,7 +42,6 @@ app.post('/api/salons/register', upload.fields([{ name: 'fachada', maxCount: 1 }
     const salonData = {
       id: salonId, nombreLocal, direccion, telefono, fachadaImg: fachadaFilename, createdAt: new Date().toISOString()
     };
-    
     const salonsDir = path.join(__dirname, '../database/Salons');
     if (!fs.existsSync(salonsDir)) fs.mkdirSync(salonsDir, { recursive: true });
     fs.writeFileSync(path.join(salonsDir, `${salonId}.json`), JSON.stringify(salonData, null, 2));
@@ -46,26 +54,42 @@ app.post('/api/salons/register', upload.fields([{ name: 'fachada', maxCount: 1 }
     fs.writeFileSync(path.join(staffDir, `${salonId}_staff.json`), JSON.stringify(staffData, null, 2));
 
     res.status(201).json({ message: 'Registrado correctamente', salonId });
-
   } catch (error) {
-    console.error('Error guardando en la Base de Datos:', error);
+    console.error('Error guardando en la DB:', error);
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 });
 
-app.post('/api/appointments', (req, res) => {
+app.post('/api/appointments', async (req, res) => {
   try {
-    const { nombreCliente, telefonoCliente, fecha, hora, servicio, profesional } = req.body;
-    const appId = Date.now().toString();
+    // Normalizar payload que puede venir del nuevo Quick Modal o del Flujo Anterior
+    const client_name = req.body.nombreCliente || req.body.client_name;
+    const whatsapp = req.body.telefonoCliente || req.body.whatsapp;
+    const service = req.body.servicio || req.body.service;
+    const appointment_date = req.body.appointment_date || (`${req.body.fecha} ${req.body.hora}`);
+    const profesional = req.body.profesional || 'Barbero';
 
+    // 1. Si existe configuración de PostgreSQL (Supabase)
+    if (pool) {
+      const query = `
+        INSERT INTO appointments (client_name, whatsapp, service, appointment_date)
+        VALUES ($1, $2, $3, $4) RETURNING *;
+      `;
+      const values = [client_name, whatsapp, service, appointment_date];
+      const result = await pool.query(query, values);
+      return res.status(201).json({ message: 'Cita guardada en Postgres/Supabase', data: result.rows[0] });
+    } 
+    
+    // 2. Fallback Storage en .json Local
+    const appId = Date.now().toString();
     const appData = {
       id: appId,
-      nombreCliente,
-      telefonoCliente,
-      fecha,
-      hora,
-      servicio,
-      profesional,
+      nombreCliente: client_name,
+      telefonoCliente: whatsapp,
+      fecha: req.body.fecha || appointment_date.split(' ')[0],
+      hora: req.body.hora || appointment_date.split(' ')[1] || '00:00',
+      servicio: service,
+      profesional: profesional,
       status: 'Confirmada',
       createdAt: new Date().toISOString()
     };
@@ -74,15 +98,20 @@ app.post('/api/appointments', (req, res) => {
     if (!fs.existsSync(appsDir)) fs.mkdirSync(appsDir, { recursive: true });
 
     fs.writeFileSync(path.join(appsDir, `${appId}.json`), JSON.stringify(appData, null, 2));
-    res.status(201).json({ message: 'Cita guardada correctamente', appId });
+    res.status(201).json({ message: 'Cita guardada en Local JSON', appId });
   } catch (error) {
     console.error('Error guardando cita:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-app.get('/api/appointments', (req, res) => {
+app.get('/api/appointments', async (req, res) => {
   try {
+    if (pool) {
+      const result = await pool.query('SELECT * FROM appointments ORDER BY created_at DESC');
+      return res.json(result.rows);
+    }
+    
     const appsDir = path.join(__dirname, '../database/Appointments');
     if (!fs.existsSync(appsDir)) return res.json([]);
     const files = fs.readdirSync(appsDir);
@@ -95,7 +124,6 @@ app.get('/api/appointments', (req, res) => {
         }
       }
     });
-    // Sort from newest to oldest
     appointments.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.json(appointments);
   } catch(error) {
@@ -171,7 +199,7 @@ app.patch('/api/appointments/cancel-all/today', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('PeluLink API is running y lista para agendar!');
+  res.send('PeluLink Backend Integrado (JSON / Postgres) corriendo perfectamente!');
 });
 
 app.listen(PORT, () => {

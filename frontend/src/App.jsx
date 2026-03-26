@@ -9,6 +9,7 @@ import Details from './pages/Details';
 import MyBookings from './pages/MyBookings';
 import AdminRegister from './pages/AdminRegister';
 import BarberDashboard from './pages/BarberDashboard';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/admin/registro" element={<AdminRegister />} />
         <Route path="/barbero/agenda" element={<BarberDashboard />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </BrowserRouter>
   );
