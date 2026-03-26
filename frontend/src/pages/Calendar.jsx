@@ -9,25 +9,25 @@ export default function Calendar() {
   const [selectedTime, setSelectedTime] = useState(null);
 
   const times = [
-    { time: "13:00", available: false },
+    { time: "13:00", available: true },
     { time: "13:40", available: true },
     { time: "13:50", available: true },
     { time: "14:30", available: true },
-    { time: "14:40", available: false },
-    { time: "15:20", available: false },
+    { time: "14:40", available: true },
+    { time: "15:20", available: true },
     { time: "15:30", available: true },
-    { time: "16:10", available: false },
-    { time: "16:20", available: false },
-    { time: "16:30", available: false },
-    { time: "16:40", available: false },
-    { time: "16:50", available: false },
+    { time: "16:10", available: true },
+    { time: "16:20", available: true },
+    { time: "16:30", available: true },
+    { time: "16:40", available: true },
+    { time: "16:50", available: true },
     { time: "17:00", available: true },
-    { time: "17:10", available: false },
-    { time: "17:20", available: false },
-    { time: "17:30", available: false },
-    { time: "17:40", available: false },
-    { time: "17:50", available: false },
-    { time: "18:00", available: false },
+    { time: "17:10", available: true },
+    { time: "17:20", available: true },
+    { time: "17:30", available: true },
+    { time: "17:40", available: true },
+    { time: "17:50", available: true },
+    { time: "18:00", available: true }
   ];
 
   // March 2026 dates (1 to 31) plus placeholders to align Sunday properly
@@ -57,7 +57,7 @@ export default function Calendar() {
           </div>
         </div>
 
-        <h3 className="text-white text-2xl font-bold text-center mb-4 tracking-wide">Data Agendamento</h3>
+        <h3 className="text-white text-2xl font-bold text-center mb-4 tracking-wide">Fecha de Cita</h3>
         
         {/* Date Selector */}
         <div className="relative mb-6 z-20">
