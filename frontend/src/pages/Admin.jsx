@@ -12,9 +12,14 @@ export default function Admin() {
       try {
         const res = await fetch('http://localhost:5000/api/appointments');
         const data = await res.json();
-        setAppointments(data);
+        if (Array.isArray(data)) {
+          setAppointments(data);
+        } else {
+          setAppointments([]);
+        }
       } catch (err) {
-        console.error(err);
+        console.error('Fetch Admin Blocked:', err);
+        setAppointments([]);
       } finally {
         setLoading(false);
       }
