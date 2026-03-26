@@ -16,6 +16,7 @@ export default function BarbershopPage() {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
 
   useEffect(() => {
     const fetchShop = async () => {
@@ -94,6 +95,7 @@ export default function BarbershopPage() {
             hora: selectedTime,
             cliente_nombre: clientName,
             cliente_telefono: clientPhone,
+            servicio: selectedService,
             status: 'pendiente'
           }
         ]);
@@ -105,7 +107,7 @@ export default function BarbershopPage() {
       }
 
       // 2. Abrir WhatsApp
-      const text = `Hola ${selectedBarber}, soy ${clientName}. He agendado en PeluLink una cita para el ${selectedDate} a las ${selectedTime}. ¡Nos vemos pronto!`;
+      const text = `Hola ${selectedBarber}, soy ${clientName}. He agendado en PeluLink una reservación para "${selectedService}" el ${selectedDate} a las ${selectedTime}. ¡Nos vemos pronto!`;
       const phone = shop.whatsapp.replace(/\D/g, '');
       const cleanPhone = phone.startsWith('0') ? '58' + phone.substring(1) : phone;
       
@@ -156,7 +158,17 @@ export default function BarbershopPage() {
               <h3 className="text-xs uppercase tracking-widest text-[#D4AF37] font-bold mb-3">Especialidades</h3>
               <div className="flex flex-wrap gap-2">
                 {shop.services.map((srv, i) => (
-                  <span key={i} className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#e0b93a] px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">{srv}</span>
+                  <button 
+                    key={i} 
+                    onClick={() => setSelectedService(srv)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm disabled:cursor-not-allowed ${
+                      selectedService === srv 
+                        ? 'bg-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-105' 
+                        : 'bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#e0b93a] hover:bg-[#D4AF37]/20 hover:scale-105'
+                    }`}
+                  >
+                    {srv}
+                  </button>
                 ))}
               </div>
             </div>
@@ -185,11 +197,16 @@ export default function BarbershopPage() {
                 <p className="text-[#D4AF37] text-xs font-bold mb-8 uppercase tracking-widest relative z-10">{barber.role}</p>
                 
                 <button 
+                  disabled={!selectedService}
                   onClick={() => handleOpenModal(barber.name)}
-                  className="w-full py-3.5 bg-[#111] border border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366] hover:text-black font-bold uppercase tracking-wider text-sm rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(37,211,102,0.05)] hover:shadow-[0_0_20px_rgba(37,211,102,0.3)] relative z-10"
+                  className={`w-full py-3.5 border font-bold uppercase tracking-wider text-sm rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 relative z-10 ${
+                    selectedService
+                      ? 'bg-[#111] border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366] hover:text-black shadow-[0_0_15px_rgba(37,211,102,0.05)] hover:shadow-[0_0_20px_rgba(37,211,102,0.3)]'
+                      : 'bg-[#1a1a1a] border-gray-800 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.002 2.012c-5.508 0-9.98 4.473-9.98 9.984 0 1.748.455 3.454 1.32 4.957L2 22l5.197-1.34c1.464.814 3.12 1.246 4.805 1.246 5.506 0 9.98-4.475 9.98-9.985 0-5.51-4.474-9.984-9.98-9.984zm.006 16.516c-1.472 0-2.905-.39-4.16-1.127l-.3-.178-3.09.813.826-3.013-.196-.31c-.812-1.284-1.24-2.766-1.24-4.295 0-4.575 3.72-8.293 8.297-8.293 4.57 0 8.292 3.718 8.292 8.293 0 4.576-3.722 8.294-8.293 8.294zm4.553-6.222c-.25-.124-1.476-.726-1.705-.81-.228-.083-.396-.124-.562.124-.166.25-.644.81-.79 9.77-.145.166-.29.187-.54.062-.25-.124-1.054-.388-2.005-1.238-.74-.662-1.24-1.48-1.385-1.73-.146-.25-.016-.385.11-.51.112-.11.25-.29.375-.436.126-.146.167-.25.25-.417.084-.167.042-.313-.02-.438-.064-.124-.563-1.354-.77-1.854-.203-.49-.41-424-.562-.432-.146-.008-.313-.01-.48-.01-.166 0-.436.062-.664.312-.228.25-.873.854-.873 2.083 0 1.23.894 2.42 1.02 2.585.124.167 1.764 2.69 4.27 3.776.596.258 1.062.41 1.425.526.598.19 1.14.163 1.57.1.48-.07 1.476-.603 1.684-1.186.208-.584.208-1.084.146-1.187-.06-.104-.228-.166-.478-.29z"/></svg>
-                  Reservar Ahora
+                  <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12.002 2.012c-5.508 0-9.98 4.473-9.98 9.984 0 1.748.455 3.454 1.32 4.957L2 22l5.197-1.34c1.464.814 3.12 1.246 4.805 1.246 5.506 0 9.98-4.475 9.98-9.985 0-5.51-4.474-9.984-9.98-9.984zm.006 16.516c-1.472 0-2.905-.39-4.16-1.127l-.3-.178-3.09.813.826-3.013-.196-.31c-.812-1.284-1.24-2.766-1.24-4.295 0-4.575 3.72-8.293 8.297-8.293 4.57 0 8.292 3.718 8.292 8.293 0 4.576-3.722 8.294-8.293 8.294zm4.553-6.222c-.25-.124-1.476-.726-1.705-.81-.228-.083-.396-.124-.562.124-.166.25-.644.81-.79 9.77-.145.166-.29.187-.54.062-.25-.124-1.054-.388-2.005-1.238-.74-.662-1.24-1.48-1.385-1.73-.146-.25-.016-.385.11-.51.112-.11.25-.29.375-.436.126-.146.167-.25.25-.417.084-.167.042-.313-.02-.438-.064-.124-.563-1.354-.77-1.854-.203-.49-.41-424-.562-.432-.146-.008-.313-.01-.48-.01-.166 0-.436.062-.664.312-.228.25-.873.854-.873 2.083 0 1.23.894 2.42 1.02 2.585.124.167 1.764 2.69 4.27 3.776.596.258 1.062.41 1.425.526.598.19 1.14.163 1.57.1.48-.07 1.476-.603 1.684-1.186.208-.584.208-1.084.146-1.187-.06-.104-.228-.166-.478-.29z"/></svg>
+                  <span className="truncate">{selectedService ? 'Reservar Ahora' : 'Elige un servicio'}</span>
                 </button>
               </div>
             ))}
