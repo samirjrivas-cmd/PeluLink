@@ -6,10 +6,11 @@ export default function BarbershopPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [shop, setShop] = useState(null);
+  const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Modal State
-  const [selectedBarber, setSelectedBarber] = useState(null);
+  const [selectedBarber, setSelectedBarber] = useState(null); // Object: { name, whatsapp }
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -19,22 +20,34 @@ export default function BarbershopPage() {
   const [selectedService, setSelectedService] = useState(null);
 
   useEffect(() => {
-    const fetchShop = async () => {
+    const fetchShopAndStaff = async () => {
       try {
-        const { data, error } = await supabase
+        const { data: shopData, error: shopError } = await supabase
           .from('barbershops')
           .select('*')
           .eq('slug', slug)
           .single();
           
-        if (data) setShop(data);
+        if (shopData) {
+          setShop(shopData);
+
+          // Fetch Staff (Profesionales)
+          const { data: staffData } = await supabase
+            .from('barberos')
+            .select('*')
+            .eq('barberia_id', shopData.id);
+            
+          if (staffData && staffData.length > 0) {
+            setStaff(staffData);
+          }
+        }
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchShop();
+    fetchShopAndStaff();
   }, [slug]);
 
   if (loading) return (
@@ -50,12 +63,6 @@ export default function BarbershopPage() {
     </div>
   );
 
-  const staff = [
-    { name: "Luis F.", role: "Master Barber", image: "/image_4f9260.jpg" },
-    { name: "Carlos M.", role: "Especialista en Barba", image: "/image_4f9260.jpg" },
-    { name: "Kevin", role: "Tratamientos & Color", image: "/image_4f9260.jpg" }
-  ];
-
   // Helper arrays for the calendar
   const nextDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
@@ -70,8 +77,8 @@ export default function BarbershopPage() {
     return days[d.getDay()];
   };
 
-  const handleOpenModal = (barberName) => {
-    setSelectedBarber(barberName);
+  const handleOpenModal = (barber) => {
+    setSelectedBarber(barber);
     setStep(1);
     setSelectedDate('');
     setSelectedTime('');
@@ -90,7 +97,7 @@ export default function BarbershopPage() {
         .insert([
           {
             barberia_id: shop.id,
-            barbero_name: selectedBarber,
+            barbero_name: selectedBarber.name,
             fecha: selectedDate,
             hora: selectedTime,
             cliente_nombre: clientName,
@@ -106,9 +113,10 @@ export default function BarbershopPage() {
         return;
       }
 
-      // 2. Abrir WhatsApp
-      const text = `Hola ${selectedBarber}, soy ${clientName}. He agendado en PeluLink una reservación para "${selectedService}" el ${selectedDate} a las ${selectedTime}. ¡Nos vemos pronto!`;
-      const phone = shop.whatsapp.replace(/\D/g, '');
+      // 2. Abrir WhatsApp (Usar el del Barbero, si no, el de la Barbería)
+      const targetWhatsapp = selectedBarber.whatsapp || shop.whatsapp;
+      const text = `Hola ${selectedBarber.name}, soy ${clientName}. He agendado en PeluLink una reservación para "${selectedService}" el ${selectedDate} a las ${selectedTime}. ¡Nos vemos pronto!`;
+      const phone = targetWhatsapp.replace(/\D/g, '');
       const cleanPhone = phone.startsWith('0') ? '58' + phone.substring(1) : phone;
       
       setSelectedBarber(null); // Close modal
@@ -150,8 +158,8 @@ export default function BarbershopPage() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 blur-[50px] rounded-full pointer-events-none"></div>
           <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800/80 pb-4">Detalles del Negocio</h2>
           <p className="text-gray-400 leading-relaxed text-sm md:text-base max-w-3xl">
-            Bienvenidos a su lugar de confianza en el corazón de <strong>{shop.municipality}</strong>. 
-            Representados magistralmente por <strong>{shop.owner_name}</strong>.
+            Bienvenidos  a nuestro local en <strong>{shop.municipality}</strong>. 
+            Directamente administrado por <strong>{shop.owner_name}</strong>.
           </p>
           {shop.services && shop.services.length > 0 && (
             <div className="mt-8">
@@ -181,36 +189,42 @@ export default function BarbershopPage() {
             <span className="text-gray-500 font-semibold text-sm hidden sm:inline-block">Escoge a tu profesional</span>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {staff.map((barber, i) => (
-              <div key={i} className="bg-[#0a0a0a] border border-gray-800 hover:border-[#D4AF37]/50 transition-all duration-300 rounded-[2rem] p-8 flex flex-col items-center text-center group shadow-lg hover:shadow-[0_0_30px_rgba(212,175,55,0.1)] relative overflow-hidden">
-                <div className="w-40 h-40 rounded-full overflow-hidden border-[5px] border-[#161616] group-hover:border-[#D4AF37]/80 transition-all duration-500 mb-6 relative shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-10">
-                  <img 
-                    src={barber.image} 
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=800&auto=format&fit=crop"; }}
-                    alt={barber.name} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
+          {staff.length === 0 ? (
+            <div className="text-center p-12 border border-dashed border-gray-800 rounded-3xl text-gray-500">
+               El negocio aún no ha añadido profesionales a su catálogo online.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {staff.map((barber) => (
+                <div key={barber.id} className="bg-[#0a0a0a] border border-gray-800 hover:border-[#D4AF37]/50 transition-all duration-300 rounded-[2rem] p-8 flex flex-col items-center text-center group shadow-lg hover:shadow-[0_0_30px_rgba(212,175,55,0.1)] relative overflow-hidden">
+                  <div className="w-40 h-40 rounded-full overflow-hidden border-[5px] border-[#161616] group-hover:border-[#D4AF37]/80 transition-all duration-500 mb-6 relative shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-10">
+                    <img 
+                      src={barber.foto_url || "/image_4f9260.jpg"} 
+                      onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=800&auto=format&fit=crop"; }}
+                      alt={barber.name} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                  </div>
+                  
+                  <h3 className="text-2xl font-bold text-white mb-1.5 drop-shadow-md relative z-10">{barber.name}</h3>
+                  <p className="text-[#D4AF37] text-xs font-bold mb-8 uppercase tracking-widest relative z-10">{barber.role}</p>
+                  
+                  <button 
+                    disabled={!selectedService}
+                    onClick={() => handleOpenModal(barber)}
+                    className={`w-full py-3.5 border font-bold uppercase tracking-wider text-sm rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 relative z-10 ${
+                      selectedService
+                        ? 'bg-[#111] border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366] hover:text-black shadow-[0_0_15px_rgba(37,211,102,0.05)] hover:shadow-[0_0_20px_rgba(37,211,102,0.3)]'
+                        : 'bg-[#1a1a1a] border-gray-800 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12.002 2.012c-5.508 0-9.98 4.473-9.98 9.984 0 1.748.455 3.454 1.32 4.957L2 22l5.197-1.34c1.464.814 3.12 1.246 4.805 1.246 5.506 0 9.98-4.475 9.98-9.985 0-5.51-4.474-9.984-9.98-9.984zm.006 16.516c-1.472 0-2.905-.39-4.16-1.127l-.3-.178-3.09.813.826-3.013-.196-.31c-.812-1.284-1.24-2.766-1.24-4.295 0-4.575 3.72-8.293 8.297-8.293 4.57 0 8.292 3.718 8.292 8.293 0 4.576-3.722 8.294-8.293 8.294zm4.553-6.222c-.25-.124-1.476-.726-1.705-.81-.228-.083-.396-.124-.562.124-.166.25-.644.81-.79 9.77-.145.166-.29.187-.54.062-.25-.124-1.054-.388-2.005-1.238-.74-.662-1.24-1.48-1.385-1.73-.146-.25-.016-.385.11-.51.112-.11.25-.29.375-.436.126-.146.167-.25.25-.417.084-.167.042-.313-.02-.438-.064-.124-.563-1.354-.77-1.854-.203-.49-.41-424-.562-.432-.146-.008-.313-.01-.48-.01-.166 0-.436.062-.664.312-.228.25-.873.854-.873 2.083 0 1.23.894 2.42 1.02 2.585.124.167 1.764 2.69 4.27 3.776.596.258 1.062.41 1.425.526.598.19 1.14.163 1.57.1.48-.07 1.476-.603 1.684-1.186.208-.584.208-1.084.146-1.187-.06-.104-.228-.166-.478-.29z"/></svg>
+                    <span className="truncate">{selectedService ? 'Reservar Ahora' : 'Elige un servicio'}</span>
+                  </button>
                 </div>
-                
-                <h3 className="text-2xl font-bold text-white mb-1.5 drop-shadow-md relative z-10">{barber.name}</h3>
-                <p className="text-[#D4AF37] text-xs font-bold mb-8 uppercase tracking-widest relative z-10">{barber.role}</p>
-                
-                <button 
-                  disabled={!selectedService}
-                  onClick={() => handleOpenModal(barber.name)}
-                  className={`w-full py-3.5 border font-bold uppercase tracking-wider text-sm rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 relative z-10 ${
-                    selectedService
-                      ? 'bg-[#111] border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366] hover:text-black shadow-[0_0_15px_rgba(37,211,102,0.05)] hover:shadow-[0_0_20px_rgba(37,211,102,0.3)]'
-                      : 'bg-[#1a1a1a] border-gray-800 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12.002 2.012c-5.508 0-9.98 4.473-9.98 9.984 0 1.748.455 3.454 1.32 4.957L2 22l5.197-1.34c1.464.814 3.12 1.246 4.805 1.246 5.506 0 9.98-4.475 9.98-9.985 0-5.51-4.474-9.984-9.98-9.984zm.006 16.516c-1.472 0-2.905-.39-4.16-1.127l-.3-.178-3.09.813.826-3.013-.196-.31c-.812-1.284-1.24-2.766-1.24-4.295 0-4.575 3.72-8.293 8.297-8.293 4.57 0 8.292 3.718 8.292 8.293 0 4.576-3.722 8.294-8.293 8.294zm4.553-6.222c-.25-.124-1.476-.726-1.705-.81-.228-.083-.396-.124-.562.124-.166.25-.644.81-.79 9.77-.145.166-.29.187-.54.062-.25-.124-1.054-.388-2.005-1.238-.74-.662-1.24-1.48-1.385-1.73-.146-.25-.016-.385.11-.51.112-.11.25-.29.375-.436.126-.146.167-.25.25-.417.084-.167.042-.313-.02-.438-.064-.124-.563-1.354-.77-1.854-.203-.49-.41-424-.562-.432-.146-.008-.313-.01-.48-.01-.166 0-.436.062-.664.312-.228.25-.873.854-.873 2.083 0 1.23.894 2.42 1.02 2.585.124.167 1.764 2.69 4.27 3.776.596.258 1.062.41 1.425.526.598.19 1.14.163 1.57.1.48-.07 1.476-.603 1.684-1.186.208-.584.208-1.084.146-1.187-.06-.104-.228-.166-.478-.29z"/></svg>
-                  <span className="truncate">{selectedService ? 'Reservar Ahora' : 'Elige un servicio'}</span>
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
@@ -221,7 +235,7 @@ export default function BarbershopPage() {
             
             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
               <div>
-                <h3 className="text-xl font-bold text-white">Reserva con {selectedBarber}</h3>
+                <h3 className="text-xl font-bold text-white">Reserva con {selectedBarber.name}</h3>
                 <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Paso {step} de 2</p>
               </div>
               <button onClick={() => setSelectedBarber(null)} className="text-gray-500 hover:text-white p-2">✕</button>

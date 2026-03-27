@@ -10,6 +10,10 @@ const MUNICIPALITIES = [
 
 export default function BusinessRegister() {
   const navigate = useNavigate();
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  // Paso 1: Datos negocio
   const [formData, setFormData] = useState({
     business_name: '',
     owner_name: '',
@@ -17,131 +21,175 @@ export default function BusinessRegister() {
     whatsapp: '',
     services: ''
   });
-
-  const [loading, setLoading] = useState(false);
-  const [finalLink, setFinalLink] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
-  const handleSubmit = async (e) => {
+  // Paso 2: Datos barberos
+  const [barbers, setBarbers] = useState([
+    { id: 1, name: '', role: 'Barbero Principal', whatsapp: '', file: null }
+  ]);
+
+  const handleAddBarber = () => {
+    setBarbers([...barbers, { id: Date.now(), name: '', role: '', whatsapp: '', file: null }]);
+  };
+
+  const handleUpdateBarber = (id, field, value) => {
+    setBarbers(barbers.map(b => b.id === id ? { ...b, [field]: value } : b));
+  };
+
+  const handleRemoveBarber = (id) => {
+    if (barbers.length > 1) {
+      setBarbers(barbers.filter(b => b.id !== id));
+    }
+  };
+
+  const handleSubmitStep1 = (e) => {
+    e.preventDefault();
+    setStep(2);
+    window.scrollTo(0, 0);
+  };
+
+  const handleSubmitFinal = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const servicesArray = formData.services.split(',').map(s => s.trim()).filter(s => s);
-      const slug = formData.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const randomSuffix = Math.floor(Math.random() * 10000);
+      const slug = formData.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + randomSuffix;
 
+      // 1. Subir Foto Fachada
       let publicImageUrl = '';
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop();
-        const filePath = `${Date.now()}_${slug}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('fotos-barberias')
-          .upload(filePath, imageFile);
-          
-        if (uploadError) {
-          console.error('Blob Storage Error:', uploadError);
-          // If storage fails but the rest is okay, we gracefully continue or alert without entirely halting
-        } else {
-          const { data: publicData } = supabase.storage
-            .from('fotos-barberias')
-            .getPublicUrl(filePath);
+        const filePath = `fachadas/${Date.now()}_${slug}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('fotos-barberias').upload(filePath, imageFile);
+        if (!uploadError) {
+          const { data: publicData } = supabase.storage.from('fotos-barberias').getPublicUrl(filePath);
           publicImageUrl = publicData.publicUrl;
+        } else {
+          console.error("Storage upload error (Fachada):", uploadError);
         }
       }
 
-      // Inyección directa hacia Supabase en la Nube
-      const { data, error } = await supabase
+      // 2. Insertar Negocio y recuperar ID
+      const { data: shopData, error: shopError } = await supabase
         .from('barbershops')
-        .insert([
-          {
-            business_name: formData.business_name,
-            owner_name: formData.owner_name,
-            municipality: formData.municipality,
-            whatsapp: formData.whatsapp,
-            services: servicesArray,
-            slug: slug,
-            foto_url: publicImageUrl
-          }
-        ]);
+        .insert([{
+          business_name: formData.business_name,
+          owner_name: formData.owner_name,
+          municipality: formData.municipality,
+          whatsapp: formData.whatsapp,
+          services: servicesArray,
+          slug: slug,
+          foto_url: publicImageUrl
+        }]).select().single();
 
-      if (error) {
-        console.error('Supabase Error:', error);
-        alert('Error en Base de Datos: ' + error.message);
-      } else {
-        setFinalLink(`pelulink-app.vercel.app/${slug}`);
+      if (shopError) throw shopError;
+
+      // 3. Subir e Insertar Barberos
+      const barberInserts = [];
+      for (const barb of barbers) {
+        if (!barb.name) continue;
+        
+        let barbFotoUrl = '';
+        if (barb.file) {
+          const fileExt = barb.file.name.split('.').pop();
+          const filePath = `profesionales/${Date.now()}_${barb.id}.${fileExt}`;
+          const { error: barbUploadErr } = await supabase.storage.from('fotos-barberias').upload(filePath, barb.file);
+          if (!barbUploadErr) {
+             const { data: barbPublicData } = supabase.storage.from('fotos-barberias').getPublicUrl(filePath);
+             barbFotoUrl = barbPublicData.publicUrl;
+          }
+        }
+        
+        barberInserts.push({
+          barberia_id: shopData.id,
+          name: barb.name,
+          role: barb.role || 'Especialista',
+          whatsapp: barb.whatsapp || formData.whatsapp, // Fallback al whatsapp del negocio
+          foto_url: barbFotoUrl
+        });
       }
+
+      if (barberInserts.length > 0) {
+        const { error: barbError } = await supabase.from('barberos').insert(barberInserts);
+        if (barbError) throw barbError;
+      }
+
+      // 4. Redirección Mágica Inmediata al Nuevo Negocio
+      navigate(`/${slug}`);
+
     } catch (err) {
-      console.error(err);
-      alert('Falla en la red o base de datos no configurada.');
-    } finally {
+      console.error("Error Global:", err);
+      alert('Error en conexión: ' + (err.message || 'Verifica la consola.'));
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#070707] flex flex-col items-center justify-center p-4 font-sans text-white">
-      <div className="w-full max-w-lg bg-gradient-to-b from-[#1a1a1a] to-[#111] rounded-3xl p-8 shadow-2xl border border-gray-800 relative z-10 transition-all duration-300 hover:shadow-[0_0_40px_rgba(212,175,55,0.05)]">
+    <div className="min-h-screen bg-[#070707] flex flex-col items-center justify-center p-4 font-sans text-white py-12">
+      <div className="w-full max-w-2xl bg-gradient-to-b from-[#1a1a1a] to-[#111] rounded-3xl p-8 shadow-2xl border border-gray-800 relative z-10 transition-all duration-300 hover:shadow-[0_0_40px_rgba(212,175,55,0.05)]">
         
-        <header className="mb-8">
-          <button onClick={() => navigate('/')} className="text-gray-400 hover:text-[#D4AF37] transition-colors text-sm mb-4 flex items-center gap-1">
-            <span>←</span> Volver al inicio 
+        <header className="mb-8 border-b border-gray-800 pb-6">
+          <button onClick={() => navigate('/')} className="text-gray-400 hover:text-[#D4AF37] transition-colors text-sm mb-4 flex items-center gap-1 font-bold tracking-widest uppercase">
+            <span>←</span> Volver al Catálogo
           </button>
-          <h2 className="text-3xl font-bold tracking-wide text-[#fcfcfc]">Registra tu Negocio</h2>
-          <p className="text-[#D4AF37] font-light text-sm mt-1">Únete a PeluLink y conecta tu estilo</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-wide text-[#fcfcfc]">Suma tu Negocio</h2>
+              <p className="text-[#D4AF37] font-light text-sm mt-1">
+                {step === 1 ? 'Paso 1: Perfil de la Barbería' : 'Paso 2: Tus Profesionales'}
+              </p>
+            </div>
+            <div className="text-4xl text-[#1a1a1a] font-black tracking-tighter" style={{ WebkitTextStroke: '1px #D4AF37', color: 'transparent' }}>
+              0{step}
+            </div>
+          </div>
         </header>
 
-        {finalLink ? (
-          <div className="bg-[#00c853]/10 border border-[#00c853]/30 rounded-2xl p-6 text-center animate-[fadeInUp_0.4s_ease-out]">
-            <h3 className="text-[#00c853] text-xl font-bold mb-3">¡Felicidades! 🎉</h3>
-            <p className="text-gray-300 text-sm mb-4">Tu negocio ha sido registrado exitosamente en la plataforma. Este es tu enlace oficial directo:</p>
-            <div className="bg-[#111] border border-[#00c853]/50 p-4 rounded-xl text-lg font-bold tracking-wide mb-6 select-all cursor-pointer text-white">
-              {finalLink}
-            </div>
-            <button onClick={() => navigate('/')} className="text-[#D4AF37] hover:text-white transition-colors underline font-semibold text-sm">Regresar al catálogo</button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {step === 1 ? (
+          /* PASO 1 */
+          <form onSubmit={handleSubmitStep1} className="flex flex-col gap-6 animate-[fadeIn_0.5s_ease-out]">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold tracking-wide text-gray-300">Nombre del Negocio</label>
+              <label className="text-sm font-semibold tracking-wide text-gray-300">Nombre del Local</label>
               <input 
-                type="text" required placeholder="Ej. Barbería Vip"
+                type="text" required placeholder="Ej. Barbería Central"
                 value={formData.business_name} onChange={e => setFormData({...formData, business_name: e.target.value})}
-                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
+                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold tracking-wide text-gray-300">Nombre del Dueño / Manager</label>
+              <label className="text-sm font-semibold tracking-wide text-gray-300">Dueño o Gerente</label>
               <input 
                 type="text" required placeholder="Ej. Carlos Martínez"
                 value={formData.owner_name} onChange={e => setFormData({...formData, owner_name: e.target.value})}
-                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
+                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold tracking-wide text-gray-300">Municipio (Sucre)</label>
+                <label className="text-sm font-semibold tracking-wide text-gray-300">Municipio</label>
                 <select 
                   value={formData.municipality} onChange={e => setFormData({...formData, municipality: e.target.value})}
-                  className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3 text-gray-200 focus:outline-none focus:border-[#D4AF37] transition-all"
+                  className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-gray-200 focus:outline-none focus:border-[#D4AF37] transition-all"
                 >
                   {MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold tracking-wide text-gray-300">WhatsApp</label>
+                <label className="text-sm font-semibold tracking-wide text-gray-300">Teléfono Local / WhatsApp</label>
                 <input 
                   type="text" required placeholder="Ej. 0414 123 4567"
                   value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})}
-                  className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
+                  className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold tracking-wide text-gray-300">Foto de Fachada</label>
+              <label className="text-sm font-semibold tracking-wide text-gray-300">Sube la foto de tu Fachada / Local</label>
               <input 
                 type="file" accept="image/*"
                 onChange={e => setImageFile(e.target.files[0])}
@@ -150,24 +198,95 @@ export default function BusinessRegister() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold tracking-wide text-gray-300">Servicios que ofreces</label>
+              <label className="text-sm font-semibold tracking-wide text-gray-300">Lista tus Especialidades (Separadas por Comas)</label>
               <textarea 
-                required placeholder="Ej. Corte Clásico, Barba Tradicional, Perfilado (Separados por coma)"
+                required placeholder="Ej. Corte Clásico, Barba Tradicional, Platinados, Perfilado, Keratina..."
                 value={formData.services} onChange={e => setFormData({...formData, services: e.target.value})}
-                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3 min-h-[100px] text-white focus:outline-none focus:border-[#D4AF37] transition-all scrollbar-hide text-sm leading-relaxed"
+                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 min-h-[100px] text-white focus:outline-none focus:border-[#D4AF37] transition-all scrollbar-hide text-sm leading-relaxed"
               ></textarea>
             </div>
 
             <button 
-              type="submit" disabled={loading}
-              className={`w-full mt-4 py-4 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-lg ${
-                loading 
-                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
-              }`}
+              type="submit"
+              className="w-full mt-4 py-4 flex items-center justify-center gap-2 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-lg bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]"
             >
-              {loading ? 'Generando plataforma...' : 'Completar Registro'}
+              Continuar al Paso 2 →
             </button>
+          </form>
+
+        ) : (
+          /* PASO 2 */
+          <form onSubmit={handleSubmitFinal} className="flex flex-col gap-6 animate-[fadeIn_0.5s_ease-out]">
+            <p className="text-gray-400 text-sm mb-2">Agrega a tu equipo de trabajo. Estos serán los perfiles donde tus clientes agendarán sus reservas directamente.</p>
+            
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 pb-4">
+              {barbers.map((barb, index) => (
+                <div key={barb.id} className="bg-[#111] border border-gray-800 p-5 rounded-2xl relative shadow-md">
+                  <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
+                    <h4 className="text-[#D4AF37] font-bold text-xs uppercase tracking-widest">Profesional #{index + 1}</h4>
+                    {barbers.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveBarber(barb.id)} className="text-red-500 hover:text-red-400 text-xs font-bold transition">Eliminar ✕</button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-400 font-semibold tracking-wide">Nombre o Apodo</label>
+                      <input 
+                        type="text" required placeholder="Ej. Luis F."
+                        value={barb.name} onChange={e => handleUpdateBarber(barb.id, 'name', e.target.value)}
+                        className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-400 font-semibold tracking-wide">Puesto / Especialidad</label>
+                      <input 
+                        type="text" placeholder="Ej. Master Barber"
+                        value={barb.role} onChange={e => handleUpdateBarber(barb.id, 'role', e.target.value)}
+                        className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-400 font-semibold tracking-wide">WhatsApp Propio (Opcional)</label>
+                      <input 
+                        type="text" placeholder="Vacío = usa el del Local"
+                        value={barb.whatsapp} onChange={e => handleUpdateBarber(barb.id, 'whatsapp', e.target.value)}
+                        className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-400 font-semibold tracking-wide">Sube su Foto de Perfil</label>
+                      <input 
+                        type="file" accept="image/*"
+                        onChange={e => handleUpdateBarber(barb.id, 'file', e.target.files[0])}
+                        className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-1.5 text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-[#1a1a1a] file:text-white hover:file:bg-[#222] transition-all text-xs cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button type="button" onClick={handleAddBarber} className="py-3 border border-dashed border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-xl text-sm font-bold uppercase tracking-wider transition-colors w-full flex items-center justify-center gap-2">
+              <span>+</span> Agregar otro perfil
+            </button>
+
+            <div className="flex gap-4 mt-4 pt-6 border-t border-gray-800">
+              <button type="button" onClick={() => setStep(1)} className="px-6 py-4 rounded-xl text-gray-400 hover:text-white hover:bg-[#111] transition font-bold uppercase tracking-widest text-sm border border-gray-800 w-1/3">
+                Atrás
+              </button>
+              
+              <button 
+                type="submit" disabled={loading}
+                className={`flex-1 py-4 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-lg ${
+                  loading 
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' 
+                    : 'bg-[#25D366] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(37,211,102,0.4)]'
+                }`}
+              >
+                {loading ? 'Subiendo Cargas...' : 'PUBLICAR NEGOCIO ✓'}
+              </button>
+            </div>
           </form>
         )}
       </div>
