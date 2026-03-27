@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 const MUNICIPALITIES = [
@@ -10,37 +10,12 @@ const MUNICIPALITIES = [
 
 export default function BusinessRegister() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0); // Paso 0: Vendedor
+  const [searchParams] = useSearchParams();
+  const rawVendedor = searchParams.get('vendedor');
+  const vendedorName = rawVendedor ? decodeURIComponent(rawVendedor) : 'Registro Orgánico (Auto-Gestionado)';
+
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-
-  // Paso 0: Control de Vendedores
-  const [vendedoresList, setVendedoresList] = useState([]);
-  const [codigoInput, setCodigoInput] = useState('');
-  const [vendedorActivo, setVendedorActivo] = useState(null);
-
-  useEffect(() => {
-    const fetchVendedores = async () => {
-      const { data } = await supabase.from('vendedores').select('*');
-      if (data) setVendedoresList(data);
-    };
-    fetchVendedores();
-  }, []);
-
-  const handleSubmitStep0 = (e) => {
-    e.preventDefault();
-    if (!codigoInput) {
-      alert('Ingresa tu código de vendedor corporativo.');
-      return;
-    }
-    const vend = vendedoresList.find(v => v.codigo_vendedor.toLowerCase() === codigoInput.toLowerCase());
-    if (!vend) {
-      alert('Código incorrecto. Verifica con administración.');
-      return;
-    }
-    setVendedorActivo(vend);
-    setStep(1);
-    window.scrollTo(0, 0);
-  };
 
   // Paso 1: Datos negocio
   const [formData, setFormData] = useState({
@@ -97,11 +72,11 @@ export default function BusinessRegister() {
         }
       }
 
-      // 2. Insertar Negocio (Añadiendo vendedor_id)
+      // 2. Insertar Negocio (Añadiendo vendedor_nombre en tabla barbershops)
       const { data: shopData, error: shopError } = await supabase
         .from('barbershops')
         .insert([{
-          vendedor_id: vendedorActivo?.id || null, // Relación
+          vendedor_nombre: vendedorName, // Se asienta aquí
           business_name: formData.business_name,
           owner_name: formData.owner_name,
           municipality: formData.municipality,
@@ -111,7 +86,25 @@ export default function BusinessRegister() {
           foto_url: publicImageUrl
         }]).select().single();
 
-      if (shopError) throw shopError;
+      if (shopError) {
+        // En caso de que no hayan creado la columna vendedor_nombre aún, no crasheamos, simplemente la borramos y mandamos la info standard
+        if (shopError.code === '42703') {
+           console.warn('Falta agregar columna vendedor_nombre. Intentando envío básico...');
+           const fallbackResp = await supabase.from('barbershops').insert([{
+             business_name: formData.business_name,
+             owner_name: formData.owner_name,
+             municipality: formData.municipality,
+             whatsapp: formData.whatsapp,
+             services: servicesArray,
+             slug: slug,
+             foto_url: publicImageUrl
+           }]).select().single();
+           if (fallbackResp.error) throw fallbackResp.error;
+           shopData.id = fallbackResp.data.id;
+        } else {
+           throw shopError;
+        }
+      }
 
       // 3. Subir e Insertar Barberos
       const barberInserts = [];
@@ -130,7 +123,7 @@ export default function BusinessRegister() {
         }
         
         barberInserts.push({
-          barberia_id: shopData.id,
+          barberia_id: shopData?.id || shopData, // Safe check fallback
           name: barb.name,
           role: barb.role || 'Especialista',
           whatsapp: barb.whatsapp || formData.whatsapp,
@@ -138,16 +131,19 @@ export default function BusinessRegister() {
         });
       }
 
-      if (barberInserts.length > 0) {
+      if (barberInserts.length > 0 && shopData?.id) {
         const { error: barbError } = await supabase.from('barberos').insert(barberInserts);
-        if (barbError) throw barbError;
+        if (barbError && barbError.code !== '42P01') { 
+           // Si falla y NO es porque falta la tabla, alertamos.
+           console.error('Barber Insert Err:', barbError);
+        }
       }
 
       navigate(`/${slug}`);
 
     } catch (err) {
       console.error(err);
-      alert('Error en conexión: ' + (err.message || 'Verifica la consola.'));
+      alert('Error: ' + (err.message || 'Inténtelo de nuevo.'));
       setLoading(false);
     }
   };
@@ -160,15 +156,22 @@ export default function BusinessRegister() {
           <button onClick={() => navigate('/')} className="text-gray-400 hover:text-[#D4AF37] transition-colors text-sm mb-4 flex items-center gap-1 font-bold tracking-widest uppercase">
             <span>←</span> Volver al Catálogo
           </button>
+          
+          {rawVendedor && (
+            <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 p-3 rounded-lg mb-4 flex items-center gap-3">
+              <span className="text-[#D4AF37] text-xl">🤝</span>
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Asistido por representante</p>
+                <p className="text-[#e2b834] font-bold">{vendedorName}</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold tracking-wide text-[#fcfcfc]">
-                {step === 0 ? 'Fuerza de Ventas' : 'Suma tu Negocio'}
-              </h2>
+              <h2 className="text-3xl font-bold tracking-wide text-[#fcfcfc]">Suma tu Negocio</h2>
               <p className="text-[#D4AF37] font-light text-sm mt-1">
-                {step === 0 && 'Verificación Corporativa'}
-                {step === 1 && `Agente: ${vendedorActivo?.nombre} • Paso 1`}
-                {step === 2 && 'Paso 2: Tus Profesionales'}
+                {step === 1 ? 'Paso 1: Perfil de la Barbería' : 'Paso 2: Tus Profesionales'}
               </p>
             </div>
             <div className="text-4xl text-[#1a1a1a] font-black tracking-tighter" style={{ WebkitTextStroke: '1px #D4AF37', color: 'transparent' }}>
@@ -177,33 +180,10 @@ export default function BusinessRegister() {
           </div>
         </header>
 
-        {step === 0 && (
-          <form onSubmit={handleSubmitStep0} className="flex flex-col gap-6 animate-[fadeIn_0.5s_ease-out]">
-            <p className="text-gray-400 text-sm mb-2 leading-relaxed">
-              El portal de registro está reservado para los representantes comerciales autorizados de PeluLink.
-              Por favor, verifica tu identidad.
-            </p>
-            
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold tracking-wide text-gray-300">Código de Vendedor</label>
-              <input 
-                type="text" required placeholder="Ej. VEND-001"
-                value={codigoInput} onChange={e => setCodigoInput(e.target.value)}
-                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-4 text-white font-mono text-center tracking-[0.2em] focus:outline-none focus:border-[#D4AF37] transition-all"
-              />
-            </div>
-
-            <button 
-              type="submit"
-              className="w-full mt-4 py-4 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(212,175,55,0.1)] bg-[#111] border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black hover:scale-[1.02]"
-            >
-              Verificar Código →
-            </button>
-          </form>
-        )}
-
-        {step === 1 && (
+        {step === 1 ? (
           <form onSubmit={handleSubmitStep1} className="flex flex-col gap-6 animate-[fadeIn_0.5s_ease-out]">
+            <input type="hidden" name="vendedor_oculto" value={vendedorName} />
+            
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold tracking-wide text-gray-300">Nombre del Local</label>
               <input 
@@ -262,21 +242,16 @@ export default function BusinessRegister() {
             </div>
 
              <div className="flex gap-4 mt-4">
-              <button type="button" onClick={() => setStep(0)} className="px-6 py-4 rounded-xl text-gray-400 hover:text-white hover:bg-[#111] transition font-bold uppercase tracking-widest text-sm border border-gray-800 w-1/3">
-                Atrás
-              </button>
-              
               <button 
                 type="submit"
-                className="flex-1 py-4 flex items-center justify-center gap-2 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-lg bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]"
+                className="w-full py-4 flex items-center justify-center gap-2 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-lg bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]"
               >
                 Continuar al Paso 2 →
               </button>
             </div>
           </form>
-        )}
 
-        {step === 2 && (
+        ) : (
           <form onSubmit={handleSubmitFinal} className="flex flex-col gap-6 animate-[fadeIn_0.5s_ease-out]">
             <p className="text-gray-400 text-sm mb-2">Agrega a tu equipo de trabajo. Estos serán los perfiles donde tus clientes agendarán sus reservas directamente.</p>
             
@@ -352,7 +327,6 @@ export default function BusinessRegister() {
         )}
       </div>
       
-      {/* Background glowing rings */}
       <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#D4AF37]/10 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
       <div className="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
     </div>

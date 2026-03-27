@@ -10,13 +10,10 @@ export default function Admin() {
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        // Obtenemos los negocios y hacemos un JOIN silencioso con la tabla vendedores
+        // Obtenemos los negocios sin necesidad de JOINS pesados gracias a la inyección por URL Directa
         const { data, error } = await supabase
           .from('barbershops')
-          .select(`
-            *,
-            vendedores(nombre, codigo_vendedor)
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
         
         if (data) setShops(data);
@@ -83,13 +80,13 @@ export default function Admin() {
                         <div className="text-[10px] text-[#25D366] font-mono mt-1">{shop.whatsapp}</div>
                       </td>
                       <td className="p-5">
-                        {shop.vendedores ? (
+                        {shop.vendedor_nombre && shop.vendedor_nombre !== 'Registro Orgánico (Auto-Gestionado)' ? (
                           <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-[#D4AF37]/10 border border-[#D4AF37]/20">
-                            <span className="text-xs font-bold text-[#D4AF37] uppercase">{shop.vendedores.nombre}</span>
-                            <span className="text-[9px] font-mono text-gray-500">({shop.vendedores.codigo_vendedor})</span>
+                            <span className="text-xs font-bold text-[#D4AF37] uppercase">{shop.vendedor_nombre}</span>
+                            <span className="text-[10px] text-gray-400">🔗 Link Ref</span>
                           </span>
                         ) : (
-                          <span className="text-xs text-gray-600 font-semibold italic">Auto-Gestionado (Sin Code)</span>
+                          <span className="text-xs text-gray-600 font-semibold italic">Orgánico (Sin Referir)</span>
                         )}
                       </td>
                       <td className="p-5 text-gray-500 text-[10px] tracking-widest uppercase">
