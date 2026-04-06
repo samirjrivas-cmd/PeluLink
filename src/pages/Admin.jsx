@@ -37,9 +37,17 @@ export default function Admin() {
             <h1 className="text-3xl font-bold tracking-wide text-[#fcfcfc]">Panel de Ingresos Corporativos</h1>
             <p className="text-[#D4AF37] text-xs font-semibold uppercase tracking-widest mt-1.5">Monitoreo de Fuerza de Ventas</p>
           </div>
-          <button onClick={() => navigate('/')} className="px-6 py-2.5 bg-[#111] border border-gray-700/50 rounded-lg hover:border-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all text-xs font-bold uppercase tracking-wider text-gray-300">
-            Volver al Inicio
-          </button>
+          <div className="flex flex-col md:flex-row gap-3">
+            <button 
+              onClick={() => navigate('/agenda')} 
+              className="bg-[#D4AF37] text-black hover:bg-yellow-400 transition-colors px-6 py-2.5 rounded-lg text-xs font-bold tracking-widest uppercase shadow-md shadow-[#D4AF37]/20"
+            >
+              📅 Ver mi Agenda
+            </button>
+            <button onClick={() => navigate('/')} className="px-6 py-2.5 bg-[#111] border border-gray-700/50 rounded-lg hover:border-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all text-xs font-bold uppercase tracking-wider text-gray-300">
+              Volver al Inicio
+            </button>
+          </div>
         </header>
 
         {loading ? (
