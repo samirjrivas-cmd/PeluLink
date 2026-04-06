@@ -79,6 +79,16 @@ export default function Details() {
           onClick={async () => {
             setIsSubmitting(true);
             
+            const cleanPhone = (p) => {
+              if (!p) return '';
+              let cleaned = String(p).replace(/\D/g, '');
+              if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+              if (!cleaned.startsWith('58')) cleaned = '58' + cleaned;
+              return cleaned;
+            };
+
+            const sanitizedClientPhone = cleanPhone(phone);
+            
             // 1. Guardar en Base de Datos
             try {
               await fetch('http://localhost:5000/api/appointments', {
@@ -86,7 +96,7 @@ export default function Details() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   nombreCliente: name,
-                  telefonoCliente: phone,
+                  telefonoCliente: sanitizedClientPhone,
                   fecha: date,
                   hora: time,
                   servicio: service,
@@ -99,8 +109,9 @@ export default function Details() {
 
             // 2. Redirección a WhatsApp del Barbero
             const barberoPhone = "584141234567"; // Número del local configurado por defecto
+            const sanitizedBarberPhone = cleanPhone(barberoPhone);
             const message = `Hola! Agendé un servicio por PeluLink. Detalles: ${service} para el día ${date} a las ${time}.`;
-            const whatsappUrl = `https://wa.me/${barberoPhone}?text=${encodeURIComponent(message)}`;
+            const whatsappUrl = `https://wa.me/${sanitizedBarberPhone}?text=${encodeURIComponent(message)}`;
             
             setIsSubmitting(false);
             window.open(whatsappUrl, '_blank');

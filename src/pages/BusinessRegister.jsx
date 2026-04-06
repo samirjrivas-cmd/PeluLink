@@ -14,6 +14,14 @@ export default function BusinessRegister() {
   const rawVendedor = searchParams.get('vendedor');
   const vendedorName = rawVendedor ? decodeURIComponent(rawVendedor) : 'Registro Orgánico (Auto-Gestionado)';
 
+  const cleanPhone = (phone) => {
+    if (!phone) return '';
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+    if (!cleaned.startsWith('58')) cleaned = '58' + cleaned;
+    return cleaned;
+  };
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -73,14 +81,15 @@ export default function BusinessRegister() {
       }
 
       // 2. Insertar Negocio (Añadiendo vendedor_nombre en tabla barbershops)
+      const sanitizedShopPhone = cleanPhone(formData.whatsapp);
       const { data: shopData, error: shopError } = await supabase
         .from('barbershops')
         .insert([{
-          vendedor_nombre: vendedorName, // Se asienta aquí
+          vendedor_nombre: vendedorName,
           business_name: formData.business_name,
           owner_name: formData.owner_name,
           municipality: formData.municipality,
-          whatsapp: formData.whatsapp,
+          whatsapp: sanitizedShopPhone,
           services: servicesArray,
           slug: slug,
           foto_url: publicImageUrl
@@ -94,7 +103,7 @@ export default function BusinessRegister() {
              business_name: formData.business_name,
              owner_name: formData.owner_name,
              municipality: formData.municipality,
-             whatsapp: formData.whatsapp,
+             whatsapp: sanitizedShopPhone,
              services: servicesArray,
              slug: slug,
              foto_url: publicImageUrl
@@ -126,7 +135,7 @@ export default function BusinessRegister() {
           barberia_id: shopData?.id || shopData, // Safe check fallback
           name: barb.name,
           role: barb.role || 'Especialista',
-          whatsapp: barb.whatsapp || formData.whatsapp,
+          whatsapp: cleanPhone(barb.whatsapp) || sanitizedShopPhone,
           foto_url: barbFotoUrl
         });
       }

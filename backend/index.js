@@ -12,6 +12,14 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const cleanPhone = (phone) => {
+  if (!phone) return '';
+  let cleaned = String(phone).replace(/\D/g, '');
+  if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+  if (!cleaned.startsWith('58')) cleaned = '58' + cleaned;
+  return cleaned;
+};
+
 let pool;
 if (process.env.DATABASE_URL) {
   pool = new Pool({
@@ -34,7 +42,8 @@ const upload = multer({ storage: storage });
 
 app.post('/api/salons/register', upload.fields([{ name: 'fachada', maxCount: 1 }, { name: 'barberos', maxCount: 1 }]), (req, res) => {
   try {
-    const { nombreLocal, direccion, telefono } = req.body;
+    const { nombreLocal, direccion } = req.body;
+    const telefono = cleanPhone(req.body.telefono);
     const salonId = Date.now().toString();
     const fachadaFilename = req.files['fachada'] ? req.files['fachada'][0].filename : null;
     const barberosFilename = req.files['barberos'] ? req.files['barberos'][0].filename : null;
@@ -63,7 +72,7 @@ app.post('/api/salons/register', upload.fields([{ name: 'fachada', maxCount: 1 }
 app.post('/api/appointments', async (req, res) => {
   try {
     const client_name = req.body.nombreCliente || req.body.client_name;
-    const whatsapp = req.body.telefonoCliente || req.body.whatsapp;
+    const whatsapp = cleanPhone(req.body.telefonoCliente || req.body.whatsapp);
     const service = req.body.servicio || req.body.service;
     const appointment_date = req.body.appointment_date || (`${req.body.fecha} ${req.body.hora}`);
     const profesional = req.body.profesional || 'Barbero';
@@ -197,7 +206,8 @@ app.patch('/api/appointments/cancel-all/today', (req, res) => {
 
 app.post('/api/barbershops', async (req, res) => {
   try {
-    const { business_name, owner_name, municipality, whatsapp, services } = req.body;
+    const { business_name, owner_name, municipality, services } = req.body;
+    const whatsapp = cleanPhone(req.body.whatsapp);
     
     // Crear un identificador único para URL amigable (slug)
     const slug = business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');

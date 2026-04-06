@@ -86,11 +86,21 @@ export default function BarbershopPage() {
     setClientPhone('');
   };
 
+  const cleanPhone = (phone) => {
+    if (!phone) return '';
+    let cleaned = String(phone).replace(/\D/g, '');
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+    if (!cleaned.startsWith('58')) cleaned = '58' + cleaned;
+    return cleaned;
+  };
+
   const handleBookAppointment = async () => {
     if (!clientName || !clientPhone) return;
     setBookingLoading(true);
 
     try {
+      const sanitizedClientPhone = cleanPhone(clientPhone);
+
       // 1. Guardar en Supabase
       const { error } = await supabase
         .from('reservas')
@@ -101,7 +111,7 @@ export default function BarbershopPage() {
             fecha: selectedDate,
             hora: selectedTime,
             cliente_nombre: clientName,
-            cliente_telefono: clientPhone,
+            cliente_telefono: sanitizedClientPhone,
             servicio: selectedService,
             status: 'pendiente'
           }
@@ -116,11 +126,11 @@ export default function BarbershopPage() {
       // 2. Abrir WhatsApp (Usar el del Barbero, si no, el de la Barbería)
       const targetWhatsapp = selectedBarber.whatsapp || shop.whatsapp;
       const text = `Hola ${selectedBarber.name}, soy ${clientName}. He agendado en PeluLink una reservación para "${selectedService}" el ${selectedDate} a las ${selectedTime}. ¡Nos vemos pronto!`;
-      const phone = targetWhatsapp.replace(/\D/g, '');
-      const cleanPhone = phone.startsWith('0') ? '58' + phone.substring(1) : phone;
+      
+      const sanitizedBarberPhone = cleanPhone(targetWhatsapp);
       
       setSelectedBarber(null); // Close modal
-      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+      window.open(`https://wa.me/${sanitizedBarberPhone}?text=${encodeURIComponent(text)}`, '_blank');
 
     } catch (err) {
       console.error(err);
