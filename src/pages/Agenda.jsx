@@ -26,6 +26,25 @@ export default function Agenda() {
             ...r,
             barberia_name: shopsMap[r.barberia_id] || 'Desconocida'
           }));
+
+          const todayStr = new Date().toISOString().split('T')[0];
+          mapped.sort((a, b) => {
+            const aFuture = a.fecha >= todayStr;
+            const bFuture = b.fecha >= todayStr;
+
+            if (aFuture !== bFuture) {
+              return aFuture ? -1 : 1; 
+            }
+
+            if (aFuture) {
+              if (a.fecha !== b.fecha) return a.fecha.localeCompare(b.fecha); 
+              return a.hora.localeCompare(b.hora); 
+            } else {
+              if (a.fecha !== b.fecha) return b.fecha.localeCompare(a.fecha); 
+              return b.hora.localeCompare(a.hora); 
+            }
+          });
+
           setReservations(mapped);
         }
       } catch (err) {
@@ -115,10 +134,10 @@ export default function Agenda() {
                   </div>
                   
                   <a 
-                    href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(`Hola ${res.cliente_nombre}, soy ${res.barbero_name} de ${res.barberia_name}. Te escribo para confirmar tu cita de las ${res.hora}.`)}`}
+                    href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(`Hola ${res.cliente_nombre}, confirmamos tu cita en ${res.barberia_name}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#25D366] to-[#1DA851] text-black font-bold text-sm uppercase tracking-wider py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(37,211,102,0.2)] hover:shadow-[0_0_20px_rgba(37,211,102,0.4)] hover:scale-[1.02]"
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#25D366] to-[#1DA851] text-black font-black text-base uppercase tracking-wider py-4 mt-2 rounded-xl transition-all shadow-[0_0_15px_rgba(37,211,102,0.2)] hover:shadow-[0_0_20px_rgba(37,211,102,0.4)] hover:scale-[1.02]"
                   >
                     <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12.002 2.012c-5.508 0-9.98 4.473-9.98 9.984 0 1.748.455 3.454 1.32 4.957L2 22l5.197-1.34c1.464.814 3.12 1.246 4.805 1.246 5.506 0 9.98-4.475 9.98-9.985 0-5.51-4.474-9.984-9.98-9.984zm.006 16.516c-1.472 0-2.905-.39-4.16-1.127l-.3-.178-3.09.813.826-3.013-.196-.31c-.812-1.284-1.24-2.766-1.24-4.295 0-4.575 3.72-8.293 8.297-8.293 4.57 0 8.292 3.718 8.292 8.293 0 4.576-3.722 8.294-8.293 8.294zm4.553-6.222c-.25-.124-1.476-.726-1.705-.81-.228-.083-.396-.124-.562.124-.166.25-.644.81-.79 9.77-.145.166-.29.187-.54.062-.25-.124-1.054-.388-2.005-1.238-.74-.662-1.24-1.48-1.385-1.73-.146-.25-.016-.385.11-.51.112-.11.25-.29.375-.436.126-.146.167-.25.25-.417.084-.167.042-.313-.02-.438-.064-.124-.563-1.354-.77-1.854-.203-.49-.41-424-.562-.432-.146-.008-.313-.01-.48-.01-.166 0-.436.062-.664.312-.228.25-.873.854-.873 2.083 0 1.23.894 2.42 1.02 2.585.124.167 1.764 2.69 4.27 3.776.596.258 1.062.41 1.425.526.598.19 1.14.163 1.57.1.48-.07 1.476-.603 1.684-1.186.208-.584.208-1.084.146-1.187-.06-.104-.228-.166-.478-.29z"/></svg>
                     Contactar Cliente
@@ -166,7 +185,7 @@ export default function Agenda() {
                       </td>
                       <td className="p-5 text-center">
                         <a 
-                          href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(`Hola ${res.cliente_nombre}, soy ${res.barbero_name} de ${res.barberia_name}. Te escribo para confirmar tu cita de las ${res.hora}.`)}`}
+                          href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(`Hola ${res.cliente_nombre}, confirmamos tu cita en ${res.barberia_name}`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366] hover:text-black font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all"

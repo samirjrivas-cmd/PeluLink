@@ -101,6 +101,20 @@ export default function BarbershopPage() {
     try {
       const sanitizedClientPhone = cleanPhone(clientPhone);
 
+      const { data: existing } = await supabase
+        .from('reservas')
+        .select('id')
+        .eq('cliente_telefono', sanitizedClientPhone)
+        .eq('fecha', selectedDate)
+        .eq('hora', selectedTime)
+        .eq('barberia_id', shop.id);
+
+      if (existing && existing.length > 0) {
+        alert('Ya tienes una cita a esta hora');
+        setBookingLoading(false);
+        return;
+      }
+
       // 1. Guardar en Supabase
       const { error } = await supabase
         .from('reservas')
