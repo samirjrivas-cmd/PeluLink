@@ -8,7 +8,7 @@ export default function Agenda() {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const urlNegocio = searchParams.get('negocio');
+  const urlNegocio = searchParams.get('barberia');
 
   useEffect(() => {
     const fetchAgendaData = async () => {
@@ -62,7 +62,7 @@ export default function Agenda() {
 
   const filtered = reservations.filter(r => {
     if (urlNegocio) {
-      if (!r.barberia_name?.toLowerCase().includes(urlNegocio.toLowerCase())) {
+      if (r.barberia_slug !== urlNegocio) {
         return false;
       }
       if (searchTerm) {
@@ -112,7 +112,7 @@ Tu cita en ${res.barberia_name} está confirmada ✅
         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-5">
           <div>
             {urlNegocio ? (
-              <h1 className="text-2xl md:text-3xl font-bold tracking-wide text-[#fcfcfc]">Agenda de: <span className="text-[#D4AF37]">{urlNegocio}</span></h1>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-wide text-[#fcfcfc]">Agenda Privada : <span className="text-[#D4AF37] capitalize">{urlNegocio.replace(/-/g, ' ')}</span></h1>
             ) : (
               <h1 className="text-2xl md:text-3xl font-bold tracking-wide text-[#fcfcfc]">Mi Agenda</h1>
             )}
@@ -139,9 +139,8 @@ Tu cita en ${res.barberia_name} está confirmada ✅
         ) : (!urlNegocio && !searchTerm) ? (
           <div className="p-12 text-center bg-[#111] rounded-2xl border border-gray-800 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
             <div className="flex flex-col items-center justify-center text-gray-500">
-              <span className="text-4xl mb-4 text-[#D4AF37] opacity-50">🔒</span>
-              <span className="font-semibold tracking-wide text-base">Por favor, busca tu barbería para ver tu agenda.</span>
-              <p className="text-xs pt-3 mt-3 border-t border-gray-800/80 max-w-sm">Si eres dueño de una barbería y no quieres ver otras, solicita tu link directo a la administración (e.g. <i>?negocio=tu-barberia</i>)</p>
+              <span className="text-4xl mb-4 text-[#D4AF37] opacity-80">💈</span>
+              <span className="font-semibold tracking-wide text-base">Bienvenido a PeluLink. Por favor, ingresa el nombre de tu Barbería para gestionar tus citas.</span>
             </div>
           </div>
         ) : filtered.length === 0 ? (
@@ -201,10 +200,10 @@ Tu cita en ${res.barberia_name} está confirmada ✅
               <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
                   <tr className="bg-[#161616] text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-gray-800">
-                    <th className="p-5 font-semibold">Cliente / Teléfono</th>
+                    <th className={`p-5 font-semibold ${urlNegocio ? 'w-1/2' : ''}`}>Cliente / Teléfono</th>
                     <th className="p-5 font-semibold">Servicio</th>
                     <th className="p-5 font-semibold text-center">Fecha / Hora</th>
-                    <th className="p-5 font-semibold">Barbería / Profesional</th>
+                    {!urlNegocio && <th className="p-5 font-semibold">Barbería / Profesional</th>}
                     <th className="p-5 font-semibold w-32">Estado</th>
                     <th className="p-5 font-semibold text-center w-44">Acción (Chat)</th>
                   </tr>
@@ -221,13 +220,15 @@ Tu cita en ${res.barberia_name} está confirmada ✅
                         <div className="text-gray-300 font-semibold">{res.fecha}</div>
                         <div className="text-[10px] text-[#D4AF37] font-black tracking-widest mt-1 bg-[#D4AF37]/10 inline-block px-2 py-0.5 rounded">{res.hora}</div>
                       </td>
-                      <td className="p-5">
-                        <div className="font-bold text-[#fcfcfc]">{res.barberia_name}</div>
-                        <div className="text-[10px] text-gray-500 uppercase mt-1 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                          {res.barbero_name}
-                        </div>
-                      </td>
+                      {!urlNegocio && (
+                        <td className="p-5">
+                          <div className="font-bold text-[#fcfcfc]">{res.barberia_name}</div>
+                          <div className="text-[10px] text-gray-500 uppercase mt-1 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            {res.barbero_name}
+                          </div>
+                        </td>
+                      )}
                       <td className="p-5 text-xs">
                         <span className={`px-2 py-1 rounded font-bold uppercase tracking-wider ${res.status === 'Confirmada' ? 'bg-[#00c853]/10 text-[#00c853] border border-[#00c853]/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
                           {res.status || 'Pendiente'}
