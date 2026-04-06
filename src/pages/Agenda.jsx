@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 export default function Agenda() {
@@ -7,6 +7,8 @@ export default function Agenda() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlNegocio = searchParams.get('negocio');
 
   useEffect(() => {
     const fetchAgendaData = async () => {
@@ -59,6 +61,23 @@ export default function Agenda() {
   }, []);
 
   const filtered = reservations.filter(r => {
+    if (urlNegocio) {
+      if (!r.barberia_name?.toLowerCase().includes(urlNegocio.toLowerCase())) {
+        return false;
+      }
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        return (
+          r.barbero_name?.toLowerCase().includes(term) ||
+          r.cliente_nombre?.toLowerCase().includes(term) ||
+          r.fecha?.includes(term)
+        );
+      }
+      return true;
+    }
+
+    if (!searchTerm) return false;
+
     const term = searchTerm.toLowerCase();
     return (
       r.barberia_name?.toLowerCase().includes(term) ||
@@ -92,7 +111,11 @@ Tu cita en ${res.barberia_name} está confirmada ✅
       <div className="max-w-7xl mx-auto relative z-10">
         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-5">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-wide text-[#fcfcfc]">Mi Agenda</h1>
+            {urlNegocio ? (
+              <h1 className="text-2xl md:text-3xl font-bold tracking-wide text-[#fcfcfc]">Agenda de: <span className="text-[#D4AF37]">{urlNegocio}</span></h1>
+            ) : (
+              <h1 className="text-2xl md:text-3xl font-bold tracking-wide text-[#fcfcfc]">Mi Agenda</h1>
+            )}
             <p className="text-[#D4AF37] text-xs font-semibold uppercase tracking-widest mt-1.5">Gestión de Citas para Peluqueros</p>
           </div>
           <div className="flex flex-col md:flex-row gap-3">
@@ -112,6 +135,14 @@ Tu cita en ${res.barberia_name} está confirmada ✅
         {loading ? (
           <div className="flex items-center justify-center p-20">
             <p className="text-[#D4AF37] font-medium tracking-widest uppercase text-sm animate-pulse">Sincronizando Reservas...</p>
+          </div>
+        ) : (!urlNegocio && !searchTerm) ? (
+          <div className="p-12 text-center bg-[#111] rounded-2xl border border-gray-800 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+            <div className="flex flex-col items-center justify-center text-gray-500">
+              <span className="text-4xl mb-4 text-[#D4AF37] opacity-50">🔒</span>
+              <span className="font-semibold tracking-wide text-base">Por favor, busca tu barbería para ver tu agenda.</span>
+              <p className="text-xs pt-3 mt-3 border-t border-gray-800/80 max-w-sm">Si eres dueño de una barbería y no quieres ver otras, solicita tu link directo a la administración (e.g. <i>?negocio=tu-barberia</i>)</p>
+            </div>
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center bg-[#111] rounded-2xl border border-gray-800">
