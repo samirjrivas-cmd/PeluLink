@@ -59,6 +59,13 @@ export default function Explore() {
             📋 Mis Reservas
           </button>
           
+          <button 
+            onClick={() => navigate('/agenda')} 
+            className="bg-[#D4AF37] text-black hover:bg-yellow-400 transition-colors px-4 py-2 rounded-lg text-xs font-bold tracking-widest uppercase w-full md:w-auto text-center shadow-md shadow-[#D4AF37]/20"
+          >
+            📅 Ver mi Agenda
+          </button>
+          
           <div className="relative w-full md:w-64 flex-shrink-0">
             <button 
               onClick={() => setDropdownOpen(!dropdownOpen)}

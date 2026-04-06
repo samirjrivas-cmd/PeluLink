@@ -12,6 +12,7 @@ import BarberDashboard from './pages/BarberDashboard';
 import Admin from './pages/Admin';
 import BusinessRegister from './pages/BusinessRegister';
 import BarbershopPage from './pages/BarbershopPage';
+import Agenda from './pages/Agenda';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/admin/registro" element={<AdminRegister />} />
         <Route path="/barbero/agenda" element={<BarberDashboard />} />
+        <Route path="/agenda" element={<Agenda />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/registro-negocio" element={<BusinessRegister />} />
         <Route path="/:slug" element={<BarbershopPage />} />
