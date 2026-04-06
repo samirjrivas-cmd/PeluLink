@@ -79,7 +79,7 @@ Tu cita en ${res.barberia_name} está confirmada ✅
 📍 Dirección: ${res.barberia_municipality}
 
 🔗 Consulta tu cita aquí:
-👉 pelulink-app.vercel.app/my-bookings
+👉 pelulink-app.vercel.app/my-bookings?id=${res.id}
 
 ¡Agradecemos tu preferencia y estaremos listos para atenderte!
 😃 ✂`;

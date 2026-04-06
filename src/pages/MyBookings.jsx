@@ -1,17 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 export default function MyBookings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [latestApp, setLatestApp] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const getAppointments = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/appointments/my-latest');
-        const data = await res.json();
-        setLatestApp(data);
+        const idFromUrl = searchParams.get('id');
+        let foundApp = null;
+        
+        if (idFromUrl) {
+          const { data, error } = await supabase
+            .from('reservas')
+            .select('*')
+            .eq('id', idFromUrl)
+            .single();
+            
+          if (data) {
+            foundApp = {
+               id: data.id,
+               status: data.status === 'pendiente' ? 'Pendiente' : (data.status === 'Cancelada' ? 'Cancelada' : 'Confirmada'),
+               servicio: data.servicio,
+               fecha: data.fecha,
+               hora: data.hora,
+               profesional: data.barbero_name
+            };
+            localStorage.setItem('my_latest_booking', JSON.stringify(foundApp));
+          }
+        }
+
+        if (!foundApp) {
+          const saved = localStorage.getItem('my_latest_booking');
+          if (saved) {
+            foundApp = JSON.parse(saved);
+          }
+        }
+
+        setLatestApp(foundApp);
+
       } catch(err) {
         console.error(err);
       } finally {
@@ -19,7 +50,7 @@ export default function MyBookings() {
       }
     };
     getAppointments();
-  }, []);
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-[#070707] flex flex-col items-center justify-center p-4 font-sans">
