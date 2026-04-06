@@ -12,19 +12,21 @@ export default function Agenda() {
     const fetchAgendaData = async () => {
       try {
         const [{ data: shopsData }, { data: reservasData }] = await Promise.all([
-          supabase.from('barbershops').select('id, business_name'),
+          supabase.from('barbershops').select('id, business_name, slug, municipality'),
           supabase.from('reservas').select('*').order('fecha', { ascending: false }).order('hora', { ascending: true })
         ]);
         
         let shopsMap = {};
         if (shopsData) {
-          shopsData.forEach(s => { shopsMap[s.id] = s.business_name });
+          shopsData.forEach(s => { shopsMap[s.id] = s });
         }
         
         if (reservasData) {
           const mapped = reservasData.map(r => ({
             ...r,
-            barberia_name: shopsMap[r.barberia_id] || 'Desconocida'
+            barberia_name: shopsMap[r.barberia_id]?.business_name || 'Desconocida',
+            barberia_slug: shopsMap[r.barberia_id]?.slug || '',
+            barberia_municipality: shopsMap[r.barberia_id]?.municipality || 'Desconocida'
           }));
 
           const todayStr = new Date().toISOString().split('T')[0];
@@ -65,6 +67,23 @@ export default function Agenda() {
       r.fecha?.includes(term)
     );
   });
+
+  const getWaMessage = (res) => {
+    return `💈 ¡Hola, *${res.cliente_nombre}*! 
+Tu cita en ${res.barberia_name} está confirmada ✅
+
+📅 Fecha: ${res.fecha}
+⏰ Horario: ${res.hora}
+✂ Profesional: ${res.barbero_name}
+💆‍♂️ Servicio: ${res.servicio}
+📍 Dirección: ${res.barberia_municipality}
+
+🔗 Consulta tu cita aquí:
+👉 pelulink-app.vercel.app/${res.barberia_slug}
+
+¡Agradecemos tu preferencia y estaremos listos para atenderte!
+😃 ✂`;
+  };
 
   return (
     <div className="min-h-screen bg-[#070707] text-white font-sans p-4 md:p-12 relative overflow-hidden">
@@ -134,7 +153,7 @@ export default function Agenda() {
                   </div>
                   
                   <a 
-                    href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(`Hola ${res.cliente_nombre}, confirmamos tu cita en ${res.barberia_name}`)}`}
+                    href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(getWaMessage(res))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#25D366] to-[#1DA851] text-black font-black text-base uppercase tracking-wider py-4 mt-2 rounded-xl transition-all shadow-[0_0_15px_rgba(37,211,102,0.2)] hover:shadow-[0_0_20px_rgba(37,211,102,0.4)] hover:scale-[1.02]"
@@ -185,7 +204,7 @@ export default function Agenda() {
                       </td>
                       <td className="p-5 text-center">
                         <a 
-                          href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(`Hola ${res.cliente_nombre}, confirmamos tu cita en ${res.barberia_name}`)}`}
+                          href={`https://wa.me/${res.cliente_telefono}?text=${encodeURIComponent(getWaMessage(res))}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366] hover:text-black font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all"
