@@ -54,10 +54,39 @@ export default function BusinessRegister() {
     }
   };
 
-  const handleSubmitStep1 = (e) => {
+  const [vendedorCode, setVendedorCode] = useState('');
+  const [validVendedorNombre, setValidVendedorNombre] = useState('');
+
+  const handleSubmitStep1 = async (e) => {
     e.preventDefault();
-    setStep(2);
-    window.scrollTo(0, 0);
+    
+    if (!vendedorCode.trim()) {
+      alert('El código de vendedor es obligatorio.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('vendedores')
+        .select('*')
+        .eq('codigo', vendedorCode.trim())
+        .single();
+        
+      if (error || !data) {
+        alert('Código de vendedor no válido. Por favor, contacta al administrador.');
+        setLoading(false);
+        return;
+      }
+      
+      setValidVendedorNombre(data.nombre || vendedorCode.trim());
+      setStep(2);
+      window.scrollTo(0, 0);
+    } catch (err) {
+      alert('Código de vendedor no válido. Por favor, contacta al administrador.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmitFinal = async (e) => {
@@ -82,23 +111,26 @@ export default function BusinessRegister() {
 
       // 2. Insertar Negocio (Añadiendo vendedor_nombre en tabla barbershops)
       const sanitizedShopPhone = cleanPhone(formData.whatsapp);
+      const insertData = {
+        vendedor_codigo: vendedorCode.trim(),
+        vendedor_nombre: validVendedorNombre || 'Registro Orgánico (Auto-Gestionado)',
+        business_name: formData.business_name,
+        owner_name: formData.owner_name,
+        municipality: formData.municipality,
+        whatsapp: sanitizedShopPhone,
+        services: servicesArray,
+        slug: slug,
+        foto_url: publicImageUrl
+      };
+
       const { data: shopData, error: shopError } = await supabase
         .from('barbershops')
-        .insert([{
-          vendedor_nombre: vendedorName,
-          business_name: formData.business_name,
-          owner_name: formData.owner_name,
-          municipality: formData.municipality,
-          whatsapp: sanitizedShopPhone,
-          services: servicesArray,
-          slug: slug,
-          foto_url: publicImageUrl
-        }]).select().single();
+        .insert([insertData]).select().single();
 
       if (shopError) {
         // En caso de que no hayan creado la columna vendedor_nombre aún, no crasheamos, simplemente la borramos y mandamos la info standard
         if (shopError.code === '42703') {
-           console.warn('Falta agregar columna vendedor_nombre. Intentando envío básico...');
+           console.warn('Faltan columnas de vendedor. Intentando envío básico...');
            const fallbackResp = await supabase.from('barbershops').insert([{
              business_name: formData.business_name,
              owner_name: formData.owner_name,
@@ -165,16 +197,6 @@ export default function BusinessRegister() {
           <button onClick={() => navigate('/')} className="text-gray-400 hover:text-[#D4AF37] transition-colors text-sm mb-4 flex items-center gap-1 font-bold tracking-widest uppercase">
             <span>←</span> Volver al Catálogo
           </button>
-          
-          {rawVendedor && (
-            <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 p-3 rounded-lg mb-4 flex items-center gap-3">
-              <span className="text-[#D4AF37] text-xl">🤝</span>
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Asistido por representante</p>
-                <p className="text-[#e2b834] font-bold">{vendedorName}</p>
-              </div>
-            </div>
-          )}
 
           <div className="flex items-center justify-between">
             <div>
@@ -191,8 +213,19 @@ export default function BusinessRegister() {
 
         {step === 1 ? (
           <form onSubmit={handleSubmitStep1} className="flex flex-col gap-6 animate-[fadeIn_0.5s_ease-out]">
-            <input type="hidden" name="vendedor_oculto" value={vendedorName} />
             
+            <div className="bg-[#D4AF37]/5 border border-[#D4AF37]/30 p-4 rounded-xl flex flex-col gap-2 mb-2">
+              <label className="text-sm font-bold tracking-wider text-[#D4AF37] flex items-center gap-2">
+                <span>🛡️</span> Código de Vendedor
+              </label>
+              <input 
+                type="text" required placeholder="Ingresa tu código de promotor/vendedor"
+                value={vendedorCode} onChange={e => setVendedorCode(e.target.value)}
+                className="bg-[#0a0a0a] border border-[#D4AF37]/50 rounded-lg p-3.5 text-white font-bold tracking-widest uppercase focus:outline-none focus:border-[#D4AF37] focus:shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all"
+              />
+              <p className="text-xs text-gray-500 font-medium">Requerido para el registro. Consulta con soporte si no lo tienes.</p>
+            </div>
+
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold tracking-wide text-gray-300">Nombre del Local</label>
               <input 
@@ -252,10 +285,14 @@ export default function BusinessRegister() {
 
              <div className="flex gap-4 mt-4">
               <button 
-                type="submit"
-                className="w-full py-4 flex items-center justify-center gap-2 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-lg bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]"
+                type="submit" disabled={loading}
+                className={`w-full py-4 flex items-center justify-center gap-2 rounded-xl text-md font-bold tracking-widest uppercase transition-all shadow-lg ${
+                  loading 
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' 
+                    : 'bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
+                }`}
               >
-                Continuar al Paso 2 →
+                {loading ? 'Validando Código...' : 'Continuar al Paso 2 →'}
               </button>
             </div>
           </form>
