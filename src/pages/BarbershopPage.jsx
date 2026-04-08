@@ -32,8 +32,7 @@ export default function BarbershopPage() {
           .select('hora')
           .eq('barberia_id', shop.id)
           .eq('barbero_name', selectedBarber.name)
-          .eq('fecha', selectedDate)
-          .eq('status', 'Confirmada');
+          .eq('fecha', selectedDate);
 
         if (data) {
           setBookedSlots(data.map(r => r.hora));
@@ -48,7 +47,7 @@ export default function BarbershopPage() {
       .channel('schema-db-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reservas', filter: `barberia_id=eq.${shop.id}` }, (payload) => {
          const newRes = payload.new;
-         if (newRes.barbero_name === selectedBarber.name && newRes.fecha === selectedDate && newRes.status === 'Confirmada') {
+         if (newRes.barbero_name === selectedBarber.name && newRes.fecha === selectedDate) {
             setBookedSlots(prev => [...new Set([...prev, newRes.hora])]);
          }
       })
@@ -148,8 +147,7 @@ export default function BarbershopPage() {
         .eq('barbero_name', selectedBarber.name)
         .eq('fecha', selectedDate)
         .eq('hora', selectedTime)
-        .eq('barberia_id', shop.id)
-        .eq('status', 'Confirmada');
+        .eq('barberia_id', shop.id);
 
       if (existingSlot && existingSlot.length > 0) {
         alert('¡Lo sentimos! Este horario ya no está disponible');
@@ -344,7 +342,7 @@ export default function BarbershopPage() {
                           onClick={() => setSelectedTime(time)}
                           className={`py-3 rounded-xl border text-sm font-bold transition-all ${
                             isBooked 
-                              ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 opacity-30 cursor-not-allowed'
+                              ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 opacity-40 pointer-events-none cursor-not-allowed'
                               : selectedTime === time 
                                 ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
                                 : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
