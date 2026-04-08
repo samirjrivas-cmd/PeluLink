@@ -43,6 +43,20 @@ export default function BarbershopPage() {
       }
     };
     fetchBookedSlots();
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reservas', filter: `barberia_id=eq.${shop.id}` }, (payload) => {
+         const newRes = payload.new;
+         if (newRes.barbero_name === selectedBarber.name && newRes.fecha === selectedDate && newRes.status === 'Confirmada') {
+            setBookedSlots(prev => [...new Set([...prev, newRes.hora])]);
+         }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedBarber, selectedDate, shop]);
 
   useEffect(() => {
@@ -127,16 +141,18 @@ export default function BarbershopPage() {
     try {
       const sanitizedClientPhone = cleanPhone(clientPhone);
 
-      const { data: existing } = await supabase
+      // Double-booking check: ensure the slot is still free for this barber
+      const { data: existingSlot } = await supabase
         .from('reservas')
         .select('id')
-        .eq('cliente_telefono', sanitizedClientPhone)
+        .eq('barbero_name', selectedBarber.name)
         .eq('fecha', selectedDate)
         .eq('hora', selectedTime)
-        .eq('barberia_id', shop.id);
+        .eq('barberia_id', shop.id)
+        .eq('status', 'Confirmada');
 
-      if (existing && existing.length > 0) {
-        alert('Ya tienes una cita a esta hora');
+      if (existingSlot && existingSlot.length > 0) {
+        alert('¡Lo sentimos! Este horario ya no está disponible');
         setBookingLoading(false);
         return;
       }
