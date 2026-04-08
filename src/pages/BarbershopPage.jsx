@@ -12,6 +12,7 @@ export default function BarbershopPage() {
   // Modal State
   const [selectedBarber, setSelectedBarber] = useState(null); // Object: { name, whatsapp }
   const [step, setStep] = useState(1);
+  const [confirmedBookingId, setConfirmedBookingId] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [clientName, setClientName] = useState('');
@@ -177,17 +178,13 @@ export default function BarbershopPage() {
         return;
       }
 
-      // 2. Abrir WhatsApp y Redirigir la app
-      const targetWhatsapp = selectedBarber.whatsapp || shop.whatsapp;
-      const text = `💈 ¡Hola! Acabo de agendar una cita en PeluLink. Ya está confirmada en el sistema. Nos vemos el ${selectedDate} a las ${selectedTime}.`;
-      
-      const sanitizedBarberPhone = cleanPhone(targetWhatsapp);
-      
-      setSelectedBarber(null); // Close modal
-      window.open(`https://wa.me/${sanitizedBarberPhone}?text=${encodeURIComponent(text)}`, '_blank');
-
+      // 2. Transición a Pantalla de Confirmación
       if (insertedData && insertedData.length > 0) {
-        navigate(`/my-bookings?id=${insertedData[0].id}`);
+        setConfirmedBookingId(insertedData[0].id);
+        setStep(3);
+      } else {
+        alert('Reserva guardada, pero no pudimos recuperar el ID');
+        setSelectedBarber(null);
       }
 
     } catch (err) {
@@ -301,13 +298,15 @@ export default function BarbershopPage() {
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-0 animate-[fadeIn_0.3s_ease-out]">
           <div className="bg-[#111] border border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
-            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
-              <div>
-                <h3 className="text-xl font-bold text-white">Reserva con {selectedBarber.name}</h3>
-                <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Paso {step} de 2</p>
+            {step !== 3 && (
+              <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Reserva con {selectedBarber.name}</h3>
+                  <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Paso {step} de 2</p>
+                </div>
+                <button onClick={() => setSelectedBarber(null)} className="text-gray-500 hover:text-white p-2">✕</button>
               </div>
-              <button onClick={() => setSelectedBarber(null)} className="text-gray-500 hover:text-white p-2">✕</button>
-            </div>
+            )}
 
             <div className="p-6 overflow-y-auto custom-scrollbar">
               {step === 1 && (
@@ -393,9 +392,30 @@ export default function BarbershopPage() {
                   </div>
                 </div>
               )}
+              {step === 3 && (
+                <div className="animate-[fadeIn_0.5s_ease-out] flex flex-col items-center justify-center py-6 text-center gap-5">
+                  <div className="w-20 h-20 bg-[#D4AF37]/20 border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center rounded-full text-4xl mb-2 animate-bounce">
+                    ✅
+                  </div>
+                  <h3 className="text-3xl md:text-4xl font-black text-white px-2 tracking-tight">¡Reserva Confirmada!</h3>
+                  <p className="text-gray-400 font-medium px-4 max-w-[280px] leading-relaxed">
+                    Gracias por reservar con <strong className="text-white">{shop.business_name}</strong> a través de PeluLink.
+                  </p>
+                  
+                  <div className="w-full mt-4 px-2">
+                    <button 
+                      onClick={() => navigate(`/my-bookings?id=${confirmedBookingId}`)}
+                      className="w-full py-4 rounded-xl text-sm font-black tracking-widest uppercase transition-all shadow-lg bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(212,175,55,0.4)]"
+                    >
+                      VER MI RESERVA
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="p-6 border-t border-gray-800 bg-[#151515]">
+            {step !== 3 && (
+              <div className="p-6 border-t border-gray-800 bg-[#151515]">
               {step === 1 ? (
                 <button 
                   disabled={!selectedDate || !selectedTime || bookedSlots.includes(selectedTime)}
@@ -418,10 +438,11 @@ export default function BarbershopPage() {
                       : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
                   }`}
                 >
-                  {bookingLoading ? 'PROCESANDO...' : 'CONFIRMAR Y AGENDAR POR WHATSAPP'}
+                  {bookingLoading ? 'PROCESANDO...' : 'CONFIRMAR RESERVA'}
                 </button>
               )}
             </div>
+            )}
 
           </div>
         </div>
