@@ -356,10 +356,19 @@ export default function BarbershopPage() {
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-bold tracking-wide text-gray-400">Tu Número de WhatsApp</label>
                     <input 
-                      type="tel" required placeholder="Ej. 0414 123 4567"
-                      value={clientPhone} onChange={e => setClientPhone(e.target.value)}
+                      type="tel" required placeholder="Ej. +584265822230"
+                      value={clientPhone} onChange={e => {
+                        let val = e.target.value;
+                        if (val.startsWith('0')) {
+                          val = '+58' + val.substring(1);
+                        }
+                        setClientPhone(val);
+                      }}
                       className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all font-medium"
                     />
+                    {clientPhone && !clientPhone.startsWith('+58') && (
+                      <p className="text-xs text-orange-400 font-medium">Usa formato internacional (ej. +58)</p>
+                    )}
                   </div>
                 </div>
               )}
