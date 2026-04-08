@@ -127,7 +127,7 @@ export default function BarbershopPage() {
             cliente_nombre: clientName,
             cliente_telefono: sanitizedClientPhone,
             servicio: selectedService,
-            status: 'pendiente'
+            status: 'Confirmada'
           }
         ]);
 
@@ -139,7 +139,7 @@ export default function BarbershopPage() {
 
       // 2. Abrir WhatsApp (Usar el del Barbero, si no, el de la Barbería)
       const targetWhatsapp = selectedBarber.whatsapp || shop.whatsapp;
-      const text = `Hola ${selectedBarber.name}, soy ${clientName}. He agendado en PeluLink una reservación para "${selectedService}" el ${selectedDate} a las ${selectedTime}. ¡Nos vemos pronto!`;
+      const text = `💈 ¡Hola! Acabo de agendar una cita en PeluLink. Ya está confirmada en el sistema. Nos vemos el ${selectedDate} a las ${selectedTime}.`;
       
       const sanitizedBarberPhone = cleanPhone(targetWhatsapp);
       
