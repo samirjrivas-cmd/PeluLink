@@ -116,7 +116,19 @@ export default function BarbershopPage() {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
-  const timeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'];
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let h = 9; h <= 20; h++) {
+      for (let m = 0; m < 60; m += 20) {
+        if (h === 20 && m > 0) break;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const displayHour = h % 12 === 0 ? 12 : h % 12;
+        slots.push(`${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`);
+      }
+    }
+    return slots;
+  };
+  const timeSlots = generateTimeSlots();
 
   const getDayName = (dateStr) => {
     const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
