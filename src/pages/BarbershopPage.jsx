@@ -20,6 +20,7 @@ export default function BarbershopPage() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [bookedSlots, setBookedSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
     if (!selectedBarber || !selectedDate || !shop) {
@@ -27,6 +28,7 @@ export default function BarbershopPage() {
       return;
     }
     const fetchBookedSlots = async () => {
+      setLoadingSlots(true);
       try {
         const { data } = await supabase
           .from('reservas')
@@ -36,10 +38,12 @@ export default function BarbershopPage() {
           .eq('fecha', selectedDate);
 
         if (data) {
-          setBookedSlots(data.map(r => r.hora));
+          setBookedSlots(data.map(r => r.hora.trim().toUpperCase()));
         }
       } catch(err) {
         console.error(err);
+      } finally {
+        setLoadingSlots(false);
       }
     };
     fetchBookedSlots();
@@ -367,11 +371,15 @@ export default function BarbershopPage() {
                     ))}
                   </div>
 
-                  <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">Horarios Disponibles</h4>
+                  <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">
+                    Horarios Disponibles {loadingSlots && <span className="text-[10px] text-[#D4AF37] animate-pulse ml-2 normal-case tracking-normal">Buscando...</span>}
+                  </h4>
                   <div className="grid grid-cols-3 gap-3">
                     {timeSlots.map(time => {
                       const isPast = isTimeSlotPast(time, selectedDate);
-                      const isBooked = bookedSlots.includes(time) || isPast;
+                      const isBookedDirect = bookedSlots.includes(time.trim().toUpperCase());
+                      const isBooked = isBookedDirect || isPast || loadingSlots;
+                      
                       return (
                         <button 
                           key={time}
@@ -379,7 +387,7 @@ export default function BarbershopPage() {
                           onClick={() => setSelectedTime(time)}
                           className={`py-3 rounded-xl border text-sm font-bold transition-all ${
                             isBooked 
-                              ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 opacity-40 pointer-events-none cursor-not-allowed'
+                              ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 opacity-30 pointer-events-none cursor-not-allowed'
                               : selectedTime === time 
                                 ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
                                 : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
@@ -456,10 +464,10 @@ export default function BarbershopPage() {
               <div className="p-6 border-t border-gray-800 bg-[#151515]">
               {step === 1 ? (
                 <button 
-                  disabled={!selectedDate || !selectedTime || bookedSlots.includes(selectedTime)}
+                  disabled={!selectedDate || !selectedTime || loadingSlots || bookedSlots.includes(selectedTime.trim().toUpperCase())}
                   onClick={() => setStep(2)}
                   className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
-                    selectedDate && selectedTime && !bookedSlots.includes(selectedTime)
+                    (!loadingSlots && selectedDate && selectedTime && !bookedSlots.includes(selectedTime.trim().toUpperCase()))
                       ? 'bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
                       : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
                   }`}
