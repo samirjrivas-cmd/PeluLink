@@ -18,6 +18,32 @@ export default function BarbershopPage() {
   const [clientPhone, setClientPhone] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+  const [bookedSlots, setBookedSlots] = useState([]);
+
+  useEffect(() => {
+    if (!selectedBarber || !selectedDate || !shop) {
+      setBookedSlots([]);
+      return;
+    }
+    const fetchBookedSlots = async () => {
+      try {
+        const { data } = await supabase
+          .from('reservas')
+          .select('hora')
+          .eq('barberia_id', shop.id)
+          .eq('barbero_name', selectedBarber.name)
+          .eq('fecha', selectedDate)
+          .eq('status', 'Confirmada');
+
+        if (data) {
+          setBookedSlots(data.map(r => r.hora));
+        }
+      } catch(err) {
+        console.error(err);
+      }
+    };
+    fetchBookedSlots();
+  }, [selectedBarber, selectedDate, shop]);
 
   useEffect(() => {
     const fetchShopAndStaff = async () => {
@@ -286,17 +312,25 @@ export default function BarbershopPage() {
 
                   <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">Horarios Disponibles</h4>
                   <div className="grid grid-cols-3 gap-3">
-                    {timeSlots.map(time => (
-                      <button 
-                        key={time}
-                        onClick={() => setSelectedTime(time)}
-                        className={`py-3 rounded-xl border text-sm font-bold transition-all ${
-                          selectedTime === time ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50'
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    ))}
+                    {timeSlots.map(time => {
+                      const isBooked = bookedSlots.includes(time);
+                      return (
+                        <button 
+                          key={time}
+                          disabled={isBooked}
+                          onClick={() => setSelectedTime(time)}
+                          className={`py-3 rounded-xl border text-sm font-bold transition-all ${
+                            isBooked 
+                              ? 'bg-[#111] border-gray-800 text-gray-600 opacity-50 cursor-not-allowed line-through'
+                              : selectedTime === time 
+                                ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
+                                : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
+                          }`}
+                        >
+                          {time}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
