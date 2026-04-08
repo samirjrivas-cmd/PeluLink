@@ -319,7 +319,10 @@ export default function BarbershopPage() {
                     {nextDays.map(date => (
                       <button 
                         key={date}
-                        onClick={() => setSelectedDate(date)}
+                        onClick={() => {
+                          setSelectedDate(date);
+                          setSelectedTime('');
+                        }}
                         className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-all ${
                           selectedDate === date ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50'
                         }`}
@@ -397,10 +400,10 @@ export default function BarbershopPage() {
             <div className="p-6 border-t border-gray-800 bg-[#151515]">
               {step === 1 ? (
                 <button 
-                  disabled={!selectedDate || !selectedTime}
+                  disabled={!selectedDate || !selectedTime || bookedSlots.includes(selectedTime)}
                   onClick={() => setStep(2)}
                   className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
-                    selectedDate && selectedTime 
+                    selectedDate && selectedTime && !bookedSlots.includes(selectedTime)
                       ? 'bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
                       : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
                   }`}
