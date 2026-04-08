@@ -341,7 +341,7 @@ export default function BarbershopPage() {
                           onClick={() => setSelectedTime(time)}
                           className={`py-3 rounded-xl border text-sm font-bold transition-all ${
                             isBooked 
-                              ? 'bg-[#111] border-gray-800 text-gray-600 opacity-50 cursor-not-allowed line-through'
+                              ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 opacity-30 cursor-not-allowed'
                               : selectedTime === time 
                                 ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
                                 : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
