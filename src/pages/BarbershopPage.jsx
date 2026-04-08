@@ -107,7 +107,10 @@ export default function BarbershopPage() {
   const nextDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
-    return d.toISOString().split('T')[0];
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
   const timeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'];
 
@@ -115,6 +118,40 @@ export default function BarbershopPage() {
     const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const d = new Date(dateStr + 'T12:00:00');
     return days[d.getDay()];
+  };
+
+  const isTimeSlotPast = (slotStr, selectedDateStr) => {
+    if (!selectedDateStr) return false;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    // Si es un día del futuro, no bloqueamos nada
+    if (selectedDateStr > todayStr) return false;
+    // Si es un día del pasado, lo bloqueamos todo
+    if (selectedDateStr < todayStr) return true;
+
+    // Es HOY, procedemos a comparar hora por hora
+    const match = slotStr.match(/(\d+):(\d+)\s(AM|PM)/);
+    if (!match) return false;
+
+    let hours = parseInt(match[1], 10);
+    const mins = parseInt(match[2], 10);
+    const ampm = match[3];
+
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+
+    const nowHours = today.getHours();
+    const nowMins = today.getMinutes();
+
+    const slotTotalMins = hours * 60 + mins;
+    const nowTotalMins = nowHours * 60 + nowMins;
+
+    // Margen de cortesía: 30 minutos
+    return slotTotalMins <= (nowTotalMins + 30);
   };
 
   const handleOpenModal = (barber) => {
@@ -333,7 +370,8 @@ export default function BarbershopPage() {
                   <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">Horarios Disponibles</h4>
                   <div className="grid grid-cols-3 gap-3">
                     {timeSlots.map(time => {
-                      const isBooked = bookedSlots.includes(time);
+                      const isPast = isTimeSlotPast(time, selectedDate);
+                      const isBooked = bookedSlots.includes(time) || isPast;
                       return (
                         <button 
                           key={time}
