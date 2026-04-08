@@ -142,7 +142,7 @@ export default function BarbershopPage() {
       }
 
       // 1. Guardar en Supabase
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('reservas')
         .insert([
           {
@@ -155,7 +155,7 @@ export default function BarbershopPage() {
             servicio: selectedService,
             status: 'Confirmada'
           }
-        ]);
+        ]).select();
 
       if (error) {
         alert('Hubo un error al guardar tu reserva: ' + error.message);
@@ -163,7 +163,7 @@ export default function BarbershopPage() {
         return;
       }
 
-      // 2. Abrir WhatsApp (Usar el del Barbero, si no, el de la Barbería)
+      // 2. Abrir WhatsApp y Redirigir la app
       const targetWhatsapp = selectedBarber.whatsapp || shop.whatsapp;
       const text = `💈 ¡Hola! Acabo de agendar una cita en PeluLink. Ya está confirmada en el sistema. Nos vemos el ${selectedDate} a las ${selectedTime}.`;
       
@@ -171,6 +171,10 @@ export default function BarbershopPage() {
       
       setSelectedBarber(null); // Close modal
       window.open(`https://wa.me/${sanitizedBarberPhone}?text=${encodeURIComponent(text)}`, '_blank');
+
+      if (insertedData && insertedData.length > 0) {
+        navigate(`/my-bookings?id=${insertedData[0].id}`);
+      }
 
     } catch (err) {
       console.error(err);
