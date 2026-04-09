@@ -30,15 +30,22 @@ export default function BarbershopPage() {
     const fetchBookedSlots = async () => {
       setLoadingSlots(true);
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('reservas')
-          .select('hora')
+          .select('hora, status')
           .eq('barberia_id', shop.id)
           .eq('barbero_name', selectedBarber.name)
           .eq('fecha', selectedDate);
 
+        if (error) {
+          console.error('Error fetching booked slots:', error);
+        }
+
         if (data) {
-          setBookedSlots(data.map(r => r.hora.trim().toUpperCase()));
+          const activeSlots = data
+            .filter(r => r.status !== 'Cancelada' && r.status !== 'Rechazada')
+            .map(r => r.hora.trim().toUpperCase());
+          setBookedSlots(activeSlots);
         }
       } catch(err) {
         console.error(err);
@@ -50,10 +57,12 @@ export default function BarbershopPage() {
 
     const channel = supabase
       .channel('schema-db-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reservas', filter: `barberia_id=eq.${shop.id}` }, (payload) => {
-         const newRes = payload.new;
-         if (newRes.barbero_name === selectedBarber.name && newRes.fecha === selectedDate) {
-            setBookedSlots(prev => [...new Set([...prev, newRes.hora])]);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas', filter: `barberia_id=eq.${shop.id}` }, (payload) => {
+         // Listen to all events (INSERT, UPDATE) to correctly handle cancellations or new bookings in real-time
+         const resData = payload.new || payload.old; // depending on event type
+         if (resData && resData.barbero_name === selectedBarber.name && resData.fecha === selectedDate) {
+            // Re-fetch everything to ensure accuracy instead of manual array manipulation, which is safer
+            fetchBookedSlots();
          }
       })
       .subscribe();
@@ -195,16 +204,24 @@ export default function BarbershopPage() {
       const sanitizedClientPhone = cleanPhone(clientPhone);
 
       // Double-booking check: ensure the slot is still free for this barber
-      const { data: existingSlot } = await supabase
+      const { data: existingSlot, error: checkError } = await supabase
         .from('reservas')
-        .select('id')
+        .select('id, status')
         .eq('barbero_name', selectedBarber.name)
         .eq('fecha', selectedDate)
         .eq('hora', selectedTime)
-        .eq('barberia_id', shop.id);
+        .eq('barberia_id', shop.id)
+        .neq('status', 'Cancelada')
+        .neq('status', 'Rechazada');
+
+      if (checkError) {
+        console.error("Error during double-booking check:", checkError);
+      }
 
       if (existingSlot && existingSlot.length > 0) {
-        alert('¡Lo sentimos! Este horario ya no está disponible');
+        alert('¡Lo sentimos! Este horario ya no está disponible, otro cliente lo acaba de reservar.');
+        // Re-fetch booked slots so UI updates
+        setStep(1); 
         setBookingLoading(false);
         return;
       }
@@ -399,7 +416,7 @@ export default function BarbershopPage() {
                           onClick={() => setSelectedTime(time)}
                           className={`py-3 rounded-xl border text-sm font-bold transition-all ${
                             isBooked 
-                              ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 opacity-30 pointer-events-none cursor-not-allowed'
+                              ? 'bg-[#333333] border-gray-800 text-gray-500 opacity-25 pointer-events-none cursor-not-allowed'
                               : selectedTime === time 
                                 ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
                                 : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
