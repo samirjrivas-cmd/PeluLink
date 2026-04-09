@@ -50,7 +50,7 @@ export default function AdminRegister() {
       } else {
         setMessage('Error al registrar la barbería. Revisar logs del servidor.');
       }
-    } catch (error) {
+    } catch {
       setMessage('Error de red. Asegúrate de que el backend (Express) esté encendido.');
     } finally {
       setIsSubmitting(false);

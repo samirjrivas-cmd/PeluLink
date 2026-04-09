@@ -15,7 +15,7 @@ export default function MyBookings() {
         let foundApp = null;
         
         if (idFromUrl) {
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('reservas')
             .select('*')
             .eq('id', idFromUrl)

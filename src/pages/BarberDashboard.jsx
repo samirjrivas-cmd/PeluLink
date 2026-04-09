@@ -15,8 +15,8 @@ export default function BarberDashboard() {
       const res = await fetch(`http://localhost:5000/api/appointments?profesional=${encodeURIComponent(BARBER_NAME)}`);
       const data = await res.json();
       setAppointments(data);
-    } catch (error) {
-      console.error('Failed to fetch:', error);
+    } catch {
+      console.error('Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ export default function BarberDashboard() {
         const msg = `Hola, soy ${BARBER_NAME} de ${SALON_NAME}. Por un inconveniente, debo cancelar tu cita de las ${app.hora}. Por favor, agenda de nuevo en PeluLink o escríbeme por aquí.`;
         window.open(`https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodeURIComponent(msg)}`, '_blank');
       }
-    } catch (err) {
+    } catch {
       alert('Error cancelando cita');
     }
   };
@@ -60,7 +60,7 @@ export default function BarberDashboard() {
       } else {
         alert('Hubo un error cerrando la agenda.');
       }
-    } catch (err) {
+    } catch {
       alert('Falla al conectar con el servidor.');
     } finally {
       setIsClosing(false);

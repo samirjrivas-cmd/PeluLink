@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 const MUNICIPALITIES = [
@@ -10,9 +10,7 @@ const MUNICIPALITIES = [
 
 export default function BusinessRegister() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const rawVendedor = searchParams.get('vendedor');
-  const vendedorName = rawVendedor ? decodeURIComponent(rawVendedor) : 'Registro Orgánico (Auto-Gestionado)';
+  
 
   const cleanPhone = (phone) => {
     if (!phone) return '';
@@ -82,7 +80,7 @@ export default function BusinessRegister() {
       setValidVendedorNombre(data.nombre || vendedorCode.trim());
       setStep(2);
       window.scrollTo(0, 0);
-    } catch (err) {
+    } catch {
       alert('Código de vendedor no válido. Por favor, contacta al administrador.');
     } finally {
       setLoading(false);
@@ -182,9 +180,8 @@ export default function BusinessRegister() {
 
       navigate(`/${slug}`);
 
-    } catch (err) {
-      console.error(err);
-      alert('Error: ' + (err.message || 'Inténtelo de nuevo.'));
+    } catch {
+      alert('Error: ' + (e.message || 'Inténtelo de nuevo.'));
       setLoading(false);
     }
   };

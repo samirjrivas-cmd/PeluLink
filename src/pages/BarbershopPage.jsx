@@ -43,12 +43,18 @@ export default function BarbershopPage() {
 
         if (data) {
           const activeSlots = data
-            .filter(r => !r.status || r.status.toLowerCase().includes('confirmad') || r.status.toLowerCase().includes('pendient'))
+            .filter(r => {
+              if (!r.status) return true;
+              const s = String(r.status).toLowerCase();
+              return s.includes('confirmad') || s.includes('pendient');
+            })
             .map(r => {
-              let t = r.hora.trim().toUpperCase();
+              if (!r.hora) return '';
+              let t = String(r.hora).trim().toUpperCase();
               if (/^0\d:/.test(t)) t = t.substring(1); // remove leading zero
               return t;
-            });
+            })
+            .filter(t => t !== '');
           setBookedSlots(activeSlots);
         }
       } catch(err) {
@@ -79,7 +85,7 @@ export default function BarbershopPage() {
   useEffect(() => {
     const fetchShopAndStaff = async () => {
       try {
-        const { data: shopData, error: shopError } = await supabase
+        const { data: shopData } = await supabase
           .from('barbershops')
           .select('*')
           .eq('slug', slug)
