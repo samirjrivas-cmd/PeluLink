@@ -43,8 +43,12 @@ export default function BarbershopPage() {
 
         if (data) {
           const activeSlots = data
-            .filter(r => r.status !== 'Cancelada' && r.status !== 'Rechazada')
-            .map(r => r.hora.trim().toUpperCase());
+            .filter(r => !r.status || r.status.toLowerCase().includes('confirmad') || r.status.toLowerCase().includes('pendient'))
+            .map(r => {
+              let t = r.hora.trim().toUpperCase();
+              if (/^0\d:/.test(t)) t = t.substring(1); // remove leading zero
+              return t;
+            });
           setBookedSlots(activeSlots);
         }
       } catch(err) {
@@ -61,7 +65,7 @@ export default function BarbershopPage() {
          // Listen to all events (INSERT, UPDATE) to correctly handle cancellations or new bookings in real-time
          const resData = payload.new || payload.old; // depending on event type
          if (resData && resData.barbero_name === selectedBarber.name && resData.fecha === selectedDate) {
-            // Re-fetch everything to ensure accuracy instead of manual array manipulation, which is safer
+            // Force re-fetch immediately on DB mutation (create/update/delete)
             fetchBookedSlots();
          }
       })
@@ -401,32 +405,42 @@ export default function BarbershopPage() {
                   </div>
 
                   <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">
-                    Horarios Disponibles {loadingSlots && <span className="text-[10px] text-[#D4AF37] animate-pulse ml-2 normal-case tracking-normal">Buscando...</span>}
+                    Horarios Disponibles
                   </h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    {timeSlots.map(time => {
-                      const isPast = isTimeSlotPast(time, selectedDate);
-                      const isBookedDirect = bookedSlots.includes(time.trim().toUpperCase());
-                      const isBooked = isBookedDirect || isPast || loadingSlots;
-                      
-                      return (
-                        <button 
-                          key={time}
-                          disabled={isBooked}
-                          onClick={() => setSelectedTime(time)}
-                          className={`py-3 rounded-xl border text-sm font-bold transition-all ${
-                            isBooked 
-                              ? 'bg-[#333333] border-gray-800 text-gray-500 opacity-25 pointer-events-none cursor-not-allowed'
-                              : selectedTime === time 
-                                ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
-                                : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
-                          }`}
-                        >
-                          {time}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {loadingSlots ? (
+                    <div className="flex flex-col items-center justify-center p-8 border border-dashed border-gray-800 rounded-xl">
+                      <div className="w-8 h-8 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin mb-3"></div>
+                      <p className="text-sm text-[#D4AF37] font-bold tracking-widest uppercase animate-pulse">Sincronizando Agenda...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {timeSlots.map(time => {
+                        let normalizedTime = time.trim().toUpperCase();
+                        if (/^0\d:/.test(normalizedTime)) normalizedTime = normalizedTime.substring(1);
+                        
+                        const isPast = isTimeSlotPast(time, selectedDate);
+                        const isBookedDirect = bookedSlots.includes(normalizedTime);
+                        const isBooked = isBookedDirect || isPast;
+                        
+                        return (
+                          <button 
+                            key={time}
+                            disabled={isBooked}
+                            onClick={() => setSelectedTime(time)}
+                            className={`py-3 rounded-xl border text-sm font-bold transition-all ${
+                              isBooked 
+                                ? 'bg-[#333333] border-gray-800 text-gray-500 opacity-25 pointer-events-none cursor-not-allowed'
+                                : selectedTime === time 
+                                  ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
+                                  : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
+                            }`}
+                          >
+                            {time}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
