@@ -20,15 +20,28 @@ export default function OwnerDashboard() {
 
   useEffect(() => {
     const fetchShop = async () => {
+      console.log('[Dashboard] Buscando negocio con slug:', slug);
+
       try {
-        const { data: shopData } = await supabase
+        const { data: shopData, error: shopError } = await supabase
           .from('barbershops')
           .select('*')
           .eq('slug', slug)
-          .single();
+          .maybeSingle();
+
+        console.log('[Dashboard] Respuesta Supabase:', { shopData, shopError });
+
+        if (shopError) {
+          console.error('[Dashboard] Error de Supabase:', shopError);
+        }
 
         if (shopData) {
+          // If pin_acceso column doesn't exist yet, default to '1234'
+          if (!shopData.pin_acceso) {
+            shopData.pin_acceso = '1234';
+          }
           setShop(shopData);
+          console.log('[Dashboard] ✅ Negocio encontrado:', shopData.business_name, '| PIN existe:', !!shopData.pin_acceso);
 
           // Check if already authenticated via sessionStorage
           const storedAuth = sessionStorage.getItem(`pelulink_owner_${shopData.id}`);
@@ -36,9 +49,11 @@ export default function OwnerDashboard() {
             setIsAuthenticated(true);
             fetchStats(shopData.id);
           }
+        } else {
+          console.warn('[Dashboard] ⚠️ No se encontró negocio con slug:', slug);
         }
-      } catch {
-        console.error('Error loading dashboard');
+      } catch (err) {
+        console.error('[Dashboard] Error inesperado:', err);
       } finally {
         setLoading(false);
       }
@@ -83,9 +98,16 @@ export default function OwnerDashboard() {
   );
 
   if (!shop) return (
-    <div className="min-h-screen bg-[#070707] text-white flex flex-col items-center justify-center gap-4">
-      <h2 className="text-3xl font-bold">Negocio no encontrado</h2>
-      <button onClick={() => navigate('/')} className="text-[#D4AF37] hover:underline">← Inicio</button>
+    <div className="min-h-screen bg-[#070707] text-white flex flex-col items-center justify-center gap-4 p-6">
+      <span className="text-5xl mb-2">🔍</span>
+      <h2 className="text-2xl font-bold">Negocio no encontrado</h2>
+      <p className="text-gray-400 text-sm text-center max-w-md">
+        No existe un negocio con el identificador: <code className="bg-[#111] px-2 py-1 rounded text-[#D4AF37] font-mono">{slug}</code>
+      </p>
+      <p className="text-gray-600 text-xs text-center max-w-md">
+        Verifica que el link sea exacto. Ejemplo: <code className="text-gray-400">/dashboard/barberia-catania-1234</code>
+      </p>
+      <button onClick={() => navigate('/explore')} className="text-[#D4AF37] hover:underline mt-4 font-bold text-sm">← Ver negocios disponibles</button>
     </div>
   );
 
