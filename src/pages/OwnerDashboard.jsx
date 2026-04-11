@@ -32,6 +32,13 @@ export default function OwnerDashboard() {
   const [editFile, setEditFile] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Add Professional
+  const [addingPro, setAddingPro] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addRole, setAddRole] = useState('');
+  const [addFile, setAddFile] = useState(null);
+  const [savingAdd, setSavingAdd] = useState(false);
+
   useEffect(() => {
     const fetchShop = async () => {
       console.log('[Dashboard] Buscando negocio con slug:', slug);
@@ -116,9 +123,61 @@ export default function OwnerDashboard() {
 
   const startEditPro = (pro) => {
     setEditingPro(pro);
+    setAddingPro(false);
     setEditName(pro.name || '');
     setEditRole(pro.role || '');
     setEditFile(null);
+  };
+
+  const startAddPro = () => {
+    setAddingPro(true);
+    setEditingPro(null);
+    setAddName('');
+    setAddRole('');
+    setAddFile(null);
+  };
+
+  const handleAddPro = async () => {
+    if (!shop || !addName.trim()) return;
+    setSavingAdd(true);
+
+    try {
+      let fotoUrl = '';
+
+      if (addFile) {
+        const fileExt = addFile.name.split('.').pop();
+        const filePath = `profesionales/${shop.id}_${Date.now()}.${fileExt}`;
+        const { error: uploadErr } = await supabase.storage.from('fotos-barberias').upload(filePath, addFile);
+        if (!uploadErr) {
+          const { data: pubData } = supabase.storage.from('fotos-barberias').getPublicUrl(filePath);
+          fotoUrl = pubData.publicUrl;
+        }
+      }
+
+      const { data: newPro, error } = await supabase
+        .from('barberos')
+        .insert([{
+          barberia_id: shop.id,
+          name: addName.trim(),
+          role: addRole.trim() || 'Profesional',
+          whatsapp: shop.whatsapp || '',
+          foto_url: fotoUrl
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        alert('Error al registrar: ' + error.message);
+      } else if (newPro) {
+        setProfesionalesList(prev => [...prev, newPro]);
+        setAddingPro(false);
+        setTotalBarberos(prev => prev + 1);
+      }
+    } catch {
+      alert('Error de conexión.');
+    } finally {
+      setSavingAdd(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -378,13 +437,13 @@ export default function OwnerDashboard() {
           <div className="bg-[#111] border border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
               <div>
-                <h3 className="text-xl font-bold text-white">{editingPro ? '✏️ Editar Profesional' : '👥 Mi Equipo'}</h3>
+                <h3 className="text-xl font-bold text-white">{editingPro ? '✏️ Editar Profesional' : addingPro ? '➕ Nuevo Profesional' : '👥 Mi Equipo'}</h3>
                 <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">
-                  {editingPro ? editingPro.name : `${profesionalesList.length} profesionales`}
+                  {editingPro ? editingPro.name : addingPro ? 'Registro de nuevo miembro' : `${profesionalesList.length} profesionales`}
                 </p>
               </div>
-              <button onClick={() => { if (editingPro) { setEditingPro(null); } else { setModalProfesionales(false); } }} className="text-gray-500 hover:text-white p-2 text-lg">
-                {editingPro ? '←' : '✕'}
+              <button onClick={() => { if (editingPro) { setEditingPro(null); } else if (addingPro) { setAddingPro(false); } else { setModalProfesionales(false); } }} className="text-gray-500 hover:text-white p-2 text-lg">
+                {editingPro || addingPro ? '←' : '✕'}
               </button>
             </div>
 
@@ -397,87 +456,125 @@ export default function OwnerDashboard() {
               ) : editingPro ? (
                 /* ===== FORMULARIO DE EDICIÓN ===== */
                 <div className="flex flex-col gap-5 animate-[fadeIn_0.3s_ease-out]">
-                  {/* Current Photo */}
+                  {/* Photo with edit overlay */}
                   <div className="flex justify-center">
-                    <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#D4AF37]/30 shadow-lg">
-                      <img
-                        src={editFile ? URL.createObjectURL(editFile) : (editingPro.foto_url || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400')}
-                        alt={editName}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="relative group">
+                      <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#D4AF37]/30 shadow-lg">
+                        <img
+                          src={editFile ? URL.createObjectURL(editFile) : (editingPro.foto_url || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400')}
+                          alt={editName}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <label className="absolute bottom-0 right-0 bg-[#D4AF37] text-black w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:scale-110 transition-transform">
+                        <span className="text-sm">✏️</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => setEditFile(e.target.files[0])} />
+                      </label>
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs text-gray-400 font-bold tracking-wide">Nombre o Apodo</label>
-                    <input
-                      type="text" value={editName} onChange={e => setEditName(e.target.value)}
-                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all"
-                      placeholder="Ej. Luis F."
-                    />
+                    <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all" placeholder="Ej. Luis F." />
                   </div>
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidad / Rol</label>
-                    <input
-                      type="text" value={editRole} onChange={e => setEditRole(e.target.value)}
-                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all"
-                      placeholder="Ej. Master Barber"
-                    />
+                    <input type="text" value={editRole} onChange={e => setEditRole(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all" placeholder="Ej. Master Barber" />
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-gray-400 font-bold tracking-wide">📸 Cambiar Foto de Perfil</label>
-                    <input
-                      type="file" accept="image/*"
-                      onChange={e => setEditFile(e.target.files[0])}
-                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-2.5 text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#D4AF37]/20 file:text-[#D4AF37] hover:file:bg-[#D4AF37]/30 transition-all text-sm cursor-pointer"
-                    />
-                  </div>
-
-                  <button
-                    disabled={savingEdit || !editName.trim()}
-                    onClick={handleSaveEdit}
+                  <button disabled={savingEdit || !editName.trim()} onClick={handleSaveEdit}
                     className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg mt-2 ${
-                      savingEdit
-                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+                      savingEdit ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
                         : 'bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
-                    }`}
-                  >
+                    }`}>
                     {savingEdit ? 'GUARDANDO...' : '💾 GUARDAR CAMBIOS'}
                   </button>
                 </div>
-              ) : profesionalesList.length === 0 ? (
-                <div className="text-center p-10 text-gray-500">
-                  <span className="text-3xl block mb-2">👤</span>
-                  <p className="font-semibold">No hay profesionales registrados</p>
-                </div>
-              ) : (
-                /* ===== LISTA DE PROFESIONALES ===== */
-                <div className="flex flex-col gap-3">
-                  {profesionalesList.map(pro => (
-                    <div key={pro.id} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-4 flex items-center gap-4 hover:border-gray-700 transition-all group">
-                      <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-[#D4AF37]/50 transition-all flex-shrink-0">
-                        <img
-                          src={pro.foto_url || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400'}
-                          alt={pro.name}
-                          className="w-full h-full object-cover"
-                          onError={e => { e.target.src = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400'; }}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-bold text-sm truncate">{pro.name}</h4>
-                        <p className="text-[#D4AF37] text-xs font-semibold truncate">{pro.role || 'Profesional'}</p>
-                        {pro.whatsapp && <p className="text-gray-600 text-[10px] mt-0.5">{pro.whatsapp}</p>}
-                      </div>
-                      <button
-                        onClick={() => startEditPro(pro)}
-                        className="px-4 py-2 bg-[#111] border border-gray-700 hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 text-gray-400 hover:text-[#D4AF37] rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0"
-                      >
-                        ✏️ Editar
-                      </button>
+
+              ) : addingPro ? (
+                /* ===== FORMULARIO DE AGREGAR ===== */
+                <div className="flex flex-col gap-5 animate-[fadeIn_0.3s_ease-out]">
+                  {/* Photo upload area */}
+                  <div className="flex justify-center">
+                    <div className="relative">
+                      {addFile ? (
+                        <div className="relative group">
+                          <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#25D366]/30 shadow-lg">
+                            <img src={URL.createObjectURL(addFile)} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                          <label className="absolute bottom-0 right-0 bg-[#D4AF37] text-black w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:scale-110 transition-transform">
+                            <span className="text-sm">✏️</span>
+                            <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files[0]) setAddFile(e.target.files[0]); }} />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="w-28 h-28 rounded-full border-4 border-dashed border-gray-700 hover:border-[#D4AF37]/50 flex flex-col items-center justify-center cursor-pointer transition-all group">
+                          <span className="text-3xl mb-1 group-hover:scale-110 transition-transform">📷</span>
+                          <span className="text-[8px] text-gray-500 uppercase tracking-widest font-bold group-hover:text-[#D4AF37] transition-colors">Subir Foto</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files[0]) setAddFile(e.target.files[0]); }} />
+                        </label>
+                      )}
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-gray-400 font-bold tracking-wide">Nombre o Apodo</label>
+                    <input type="text" value={addName} onChange={e => setAddName(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all" placeholder="Ej. María G." autoFocus />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidad / Rol</label>
+                    <input type="text" value={addRole} onChange={e => setAddRole(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all" placeholder="Ej. Estilista, Colorista..." />
+                  </div>
+
+                  <button disabled={savingAdd || !addName.trim()} onClick={handleAddPro}
+                    className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg mt-2 ${
+                      savingAdd ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+                        : 'bg-[#25D366] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(37,211,102,0.3)]'
+                    }`}>
+                    {savingAdd ? 'REGISTRANDO...' : '💾 REGISTRAR PROFESIONAL'}
+                  </button>
+                </div>
+
+              ) : (
+                /* ===== LISTA DE PROFESIONALES + BOTÓN AGREGAR ===== */
+                <div className="flex flex-col gap-3">
+                  {profesionalesList.length === 0 ? (
+                    <div className="text-center p-8 text-gray-500">
+                      <span className="text-3xl block mb-2">👤</span>
+                      <p className="font-semibold">No hay profesionales registrados</p>
+                      <p className="text-xs mt-1">Agrega a tu primer miembro del equipo</p>
+                    </div>
+                  ) : (
+                    profesionalesList.map(pro => (
+                      <div key={pro.id} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-4 flex items-center gap-4 hover:border-gray-700 transition-all group">
+                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-[#D4AF37]/50 transition-all flex-shrink-0">
+                          <img src={pro.foto_url || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400'} alt={pro.name}
+                            className="w-full h-full object-cover" onError={e => { e.target.src = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400'; }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-white font-bold text-sm truncate">{pro.name}</h4>
+                          <p className="text-[#D4AF37] text-xs font-semibold truncate">{pro.role || 'Profesional'}</p>
+                          {pro.whatsapp && <p className="text-gray-600 text-[10px] mt-0.5">{pro.whatsapp}</p>}
+                        </div>
+                        <button onClick={() => startEditPro(pro)}
+                          className="px-4 py-2 bg-[#111] border border-gray-700 hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 text-gray-400 hover:text-[#D4AF37] rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0">
+                          ✏️ Editar
+                        </button>
+                      </div>
+                    ))
+                  )}
+
+                  {/* ADD BUTTON */}
+                  <button onClick={startAddPro}
+                    className="w-full py-4 border-2 border-dashed border-[#25D366]/40 hover:border-[#25D366] bg-[#25D366]/5 hover:bg-[#25D366]/10 rounded-xl text-[#25D366] font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2 hover:scale-[1.01] active:scale-95">
+                    <span className="text-lg">+</span> AGREGAR PROFESIONAL
+                  </button>
                 </div>
               )}
             </div>
