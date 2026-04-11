@@ -23,6 +23,24 @@ CREATE TABLE barbershops (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- =====================================================
+-- MÓDULO SaaS: Pagos de Suscripción Mensual
+-- =====================================================
+CREATE TABLE pagos_suscripcion (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    barberia_id UUID NOT NULL REFERENCES barbershops(id) ON DELETE CASCADE,
+    comprobante_url TEXT,
+    monto DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    referencia VARCHAR(20),
+    mes_pagado VARCHAR(7) NOT NULL,           -- Formato: "2026-04" (año-mes)
+    fecha_reporte TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) NOT NULL DEFAULT 'pendiente',  -- pendiente, aprobado, rechazado
+    aprobado_por VARCHAR(100),
+    aprobado_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE(barberia_id, mes_pagado)           -- Un solo pago por negocio por mes
+);
+
 -- Opcional: Configurar políticas de seguridad RLS si el frontend se conectará directo más adelante
 -- ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE barbershops ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE pagos_suscripcion ENABLE ROW LEVEL SECURITY;
