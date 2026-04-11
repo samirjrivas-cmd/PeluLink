@@ -59,6 +59,10 @@ export default function BarbershopPage() {
   const [reservasOcupadas, setReservasOcupadas] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  // Servicios con duración (tabla servicios)
+  const [serviciosList, setServiciosList] = useState([]);
+  const [selectedDuracion, setSelectedDuracion] = useState(20); // duración en minutos del servicio elegido
+
   useEffect(() => {
     if (!selectedBarber || !selectedDate || !shop) {
       setReservasOcupadas([]);
@@ -160,6 +164,31 @@ export default function BarbershopPage() {
             
           if (staffData && staffData.length > 0) {
             setStaff(staffData);
+          }
+
+          // Fetch Servicios con duración (tabla servicios)
+          const { data: serviciosData } = await supabase
+            .from('servicios')
+            .select('*')
+            .eq('barberia_id', shopData.id)
+            .eq('activo', true)
+            .order('nombre', { ascending: true });
+
+          if (serviciosData && serviciosData.length > 0) {
+            setServiciosList(serviciosData);
+            console.log('[PeluLink] Servicios cargados:', serviciosData.map(s => `${s.nombre} (${s.duracion_min}min)`));
+          } else {
+            // Fallback: convert legacy JSONB to serviciosList with 20min default
+            if (shopData.services && shopData.services.length > 0) {
+              const legacy = shopData.services.map((srv, i) => ({
+                id: `legacy-${i}`,
+                nombre: srv,
+                duracion_min: 20,
+                precio: null
+              }));
+              setServiciosList(legacy);
+              console.log('[PeluLink] Usando servicios legacy (20min default):', legacy.map(s => s.nombre));
+            }
           }
         }
       } catch (err) {
@@ -264,6 +293,55 @@ export default function BarbershopPage() {
     return cleaned;
   };
 
+  // =====================================================
+  // HELPERS: Conversión entre formatos de hora y bloques
+  // =====================================================
+  const timeToMinutes = (timeStr) => {
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return -1;
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    const ap = match[3].toUpperCase();
+    if (ap === 'PM' && h < 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60 + m;
+  };
+
+  const minutesToTime = (totalMins) => {
+    let h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    const ap = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h -= 12;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ap}`;
+  };
+
+  // Calculate required block count from duration
+  const bloquesNecesarios = Math.ceil(selectedDuracion / 20);
+
+  // Check if a start time has enough consecutive free blocks
+  const tieneBloquesLibres = (startTime) => {
+    const startMins = timeToMinutes(startTime);
+    if (startMins < 0) return false;
+
+    for (let i = 0; i < bloquesNecesarios; i++) {
+      const blockMins = startMins + (i * 20);
+      // Don't exceed 8:00 PM (20:00 = 1200 mins)
+      if (blockMins >= 1200 + 20) return false;
+      const blockTime = normalizeHora(minutesToTime(blockMins));
+      if (reservasOcupadas.some(h => h === blockTime)) return false;
+    }
+    return true;
+  };
+
+  // Select a service and set its duration
+  const handleSelectService = (srvObj) => {
+    setSelectedService(srvObj.nombre);
+    setSelectedDuracion(srvObj.duracion_min || 20);
+    setSelectedTime(''); // clear selection since blocks changed
+    console.log('[PeluLink] Servicio seleccionado:', srvObj.nombre, '| Duración:', srvObj.duracion_min, 'min |', Math.ceil((srvObj.duracion_min || 20) / 20), 'bloques');
+  };
+
   const handleBookAppointment = async () => {
     if (!clientName || !clientPhone) return;
     setBookingLoading(true);
@@ -271,44 +349,49 @@ export default function BarbershopPage() {
     try {
       const sanitizedClientPhone = cleanPhone(clientPhone);
 
-      // Double-booking check: ensure the slot is still free for this barber
-      const { data: existingSlot, error: checkError } = await supabase
-        .from('reservas')
-        .select('id, status')
-        .eq('barbero_name', selectedBarber.name)
-        .eq('fecha', selectedDate)
-        .eq('hora', selectedTime)
-        .eq('barberia_id', shop.id)
-        .neq('status', 'Cancelada')
-        .neq('status', 'Rechazada');
-
-      if (checkError) {
-        console.error("Error during double-booking check:", checkError);
+      // 1. Generate all block times for this appointment
+      const startMins = timeToMinutes(selectedTime);
+      const blockTimes = [];
+      for (let i = 0; i < bloquesNecesarios; i++) {
+        blockTimes.push(minutesToTime(startMins + (i * 20)));
       }
 
-      if (existingSlot && existingSlot.length > 0) {
-        alert('¡Lo sentimos! Este horario ya no está disponible, otro cliente lo acaba de reservar.');
-        // Re-fetch booked slots so UI updates
-        setStep(1); 
+      console.log('[PeluLink] Reservando', bloquesNecesarios, 'bloques:', blockTimes);
+
+      // 2. Double-check ALL blocks are free
+      const { data: existingSlots } = await supabase
+        .from('reservas')
+        .select('id, hora, status')
+        .eq('barbero_name', selectedBarber.name)
+        .eq('fecha', selectedDate)
+        .eq('barberia_id', shop.id)
+        .neq('status', 'Cancelada')
+        .neq('status', 'Rechazada')
+        .in('hora', blockTimes);
+
+      if (existingSlots && existingSlots.length > 0) {
+        alert('¡Lo sentimos! Uno o más de los horarios necesarios ya no está disponible.');
+        setStep(1);
         setBookingLoading(false);
         return;
       }
 
-      // 1. Guardar en Supabase
+      // 3. Insert ALL blocks into reservas
+      const insertRows = blockTimes.map((hora, idx) => ({
+        barberia_id: shop.id,
+        barbero_name: selectedBarber.name,
+        fecha: selectedDate,
+        hora: hora,
+        cliente_nombre: clientName,
+        cliente_telefono: sanitizedClientPhone,
+        servicio: selectedService + (bloquesNecesarios > 1 ? ` (${idx + 1}/${bloquesNecesarios})` : ''),
+        status: 'Confirmada'
+      }));
+
       const { data: insertedData, error } = await supabase
         .from('reservas')
-        .insert([
-          {
-            barberia_id: shop.id,
-            barbero_name: selectedBarber.name,
-            fecha: selectedDate,
-            hora: selectedTime,
-            cliente_nombre: clientName,
-            cliente_telefono: sanitizedClientPhone,
-            servicio: selectedService,
-            status: 'Confirmada'
-          }
-        ]).select();
+        .insert(insertRows)
+        .select();
 
       if (error) {
         alert('Hubo un error al guardar tu reserva: ' + error.message);
@@ -364,24 +447,32 @@ export default function BarbershopPage() {
             Bienvenidos  a nuestro local en <strong>{shop.municipality}</strong>. 
             Directamente administrado por <strong>{shop.owner_name}</strong>.
           </p>
-          {shop.services && shop.services.length > 0 && (
+          {serviciosList.length > 0 && (
             <div className="mt-8">
-              <h3 className="text-xs uppercase tracking-widest text-[#D4AF37] font-bold mb-3">Especialidades</h3>
+              <h3 className="text-xs uppercase tracking-widest text-[#D4AF37] font-bold mb-3">Servicios Disponibles</h3>
               <div className="flex flex-wrap gap-2">
-                {shop.services.map((srv, i) => (
+                {serviciosList.map((srvObj) => (
                   <button 
-                    key={i} 
-                    onClick={() => setSelectedService(srv)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm disabled:cursor-not-allowed ${
-                      selectedService === srv 
+                    key={srvObj.id} 
+                    onClick={() => handleSelectService(srvObj)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm ${
+                      selectedService === srvObj.nombre 
                         ? 'bg-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-105' 
                         : 'bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#e0b93a] hover:bg-[#D4AF37]/20 hover:scale-105'
                     }`}
                   >
-                    {srv}
+                    {srvObj.nombre}
+                    {srvObj.duracion_min > 20 && (
+                      <span className="ml-1 opacity-70">({srvObj.duracion_min}m)</span>
+                    )}
                   </button>
                 ))}
               </div>
+              {selectedService && selectedDuracion > 20 && (
+                <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+                  ⏱️ Este servicio requiere <strong className="text-[#D4AF37]">{selectedDuracion} min</strong> ({bloquesNecesarios} bloques de 20 min)
+                </p>
+              )}
             </div>
           )}
         </section>
@@ -482,7 +573,8 @@ export default function BarbershopPage() {
                         const horaBtn = normalizeHora(time);
                         const isPast = isTimeSlotPast(time, selectedDate);
                         const isOcupado = reservasOcupadas.some(h => h === horaBtn);
-                        const isDisabled = isOcupado || isPast;
+                        const noTieneBloques = !isOcupado && bloquesNecesarios > 1 && !tieneBloquesLibres(time);
+                        const isDisabled = isOcupado || isPast || noTieneBloques;
                         
                         return (
                           <button 

@@ -41,7 +41,22 @@ CREATE TABLE pagos_suscripcion (
     UNIQUE(barberia_id, mes_pagado)           -- Un solo pago por negocio por mes
 );
 
+-- =====================================================
+-- SISTEMA DE BLOQUES: Servicios con duración variable
+-- 1 bloque = 20 minutos
+-- =====================================================
+CREATE TABLE servicios (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    barberia_id UUID NOT NULL REFERENCES barbershops(id) ON DELETE CASCADE,
+    nombre VARCHAR(150) NOT NULL,              -- "Corte Clásico", "Mechas Balayage"
+    duracion_min INTEGER NOT NULL DEFAULT 20,  -- 20, 40, 60, 80, 100, 120...
+    precio DECIMAL(10, 2),                     -- Precio opcional
+    activo BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Opcional: Configurar políticas de seguridad RLS si el frontend se conectará directo más adelante
 -- ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE barbershops ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE pagos_suscripcion ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE servicios ENABLE ROW LEVEL SECURITY;
