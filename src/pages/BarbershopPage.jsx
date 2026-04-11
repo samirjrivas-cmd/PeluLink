@@ -2,6 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
+/* =====================================================
+   FUNCIÓN UNIVERSAL DE NORMALIZACIÓN DE HORARIOS
+   Convierte CUALQUIER formato de hora a una forma canónica
+   para que la comparación SIEMPRE funcione.
+   Ej: "09:00 AM" → "9:00 AM", "9:00 am" → "9:00 AM"
+   ===================================================== */
+function normalizeHora(raw) {
+  if (!raw) return '';
+  let t = String(raw).trim().toUpperCase();
+  // Quitar cero inicial: "09:00 AM" → "9:00 AM"
+  if (/^0\d:/.test(t)) t = t.substring(1);
+  // Normalizar espacios múltiples
+  t = t.replace(/\s+/g, ' ');
+  return t;
+}
+
 export default function BarbershopPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -10,7 +26,7 @@ export default function BarbershopPage() {
   const [loading, setLoading] = useState(true);
 
   // Modal State
-  const [selectedBarber, setSelectedBarber] = useState(null); // Object: { name, whatsapp }
+  const [selectedBarber, setSelectedBarber] = useState(null);
   const [step, setStep] = useState(1);
   const [confirmedBookingId, setConfirmedBookingId] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
@@ -19,15 +35,16 @@ export default function BarbershopPage() {
   const [clientPhone, setClientPhone] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
-  const [bookedSlots, setBookedSlots] = useState([]);
+  const [reservasOcupadas, setReservasOcupadas] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
     if (!selectedBarber || !selectedDate || !shop) {
-      setBookedSlots([]);
+      setReservasOcupadas([]);
       return;
     }
-    const fetchBookedSlots = async () => {
+
+    const fetchReservasOcupadas = async () => {
       setLoadingSlots(true);
       try {
         const { data, error } = await supabase
@@ -38,41 +55,61 @@ export default function BarbershopPage() {
           .eq('fecha', selectedDate);
 
         if (error) {
-          console.error('Error fetching booked slots:', error);
+          console.error('[PeluLink] Error al buscar reservas:', error);
+          setReservasOcupadas([]);
+          setLoadingSlots(false);
+          return;
         }
 
-        if (data) {
-          const activeSlots = data
-            .filter(r => {
-              if (!r.status) return true;
-              const s = String(r.status).toLowerCase();
-              return s.includes('confirmad') || s.includes('pendient');
-            })
-            .map(r => {
-              if (!r.hora) return '';
-              let t = String(r.hora).trim().toUpperCase();
-              if (/^0\d:/.test(t)) t = t.substring(1); // remove leading zero
-              return t;
-            })
-            .filter(t => t !== '');
-          setBookedSlots(activeSlots);
+        if (data && data.length > 0) {
+          // Log raw data from DB for debugging
+          console.log('[PeluLink] Reservas RAW de Supabase:', data);
+
+          // Filter only active reservations (not cancelled/rejected)
+          const activasRaw = data.filter(r => {
+            if (!r.status) return true; // sin status = activa
+            const s = String(r.status).toLowerCase().trim();
+            // Excluir SOLO las canceladas y rechazadas
+            if (s === 'cancelada' || s === 'rechazada') return false;
+            return true;
+          });
+
+          // Normalize each hora using the universal function
+          const horasOcupadas = activasRaw
+            .map(r => normalizeHora(r.hora))
+            .filter(h => h !== '');
+
+          console.log('[PeluLink] ✅ HORAS OCUPADAS para', selectedBarber.name, 'el', selectedDate, ':', horasOcupadas);
+
+          setReservasOcupadas(horasOcupadas);
+
+          // If user previously selected a time that is now booked, clear it
+          if (selectedTime && horasOcupadas.some(h => h === normalizeHora(selectedTime))) {
+            console.log('[PeluLink] ⚠️ Limpiando selectedTime porque', selectedTime, 'ya está ocupado');
+            setSelectedTime('');
+          }
+        } else {
+          console.log('[PeluLink] No hay reservas para', selectedBarber.name, 'el', selectedDate);
+          setReservasOcupadas([]);
         }
-      } catch(err) {
-        console.error(err);
+      } catch (err) {
+        console.error('[PeluLink] Error inesperado:', err);
+        setReservasOcupadas([]);
       } finally {
         setLoadingSlots(false);
       }
     };
-    fetchBookedSlots();
 
+    fetchReservasOcupadas();
+
+    // Real-time listener
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel(`reservas-${shop.id}-${selectedBarber.name}-${selectedDate}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas', filter: `barberia_id=eq.${shop.id}` }, (payload) => {
-         // Listen to all events (INSERT, UPDATE) to correctly handle cancellations or new bookings in real-time
-         const resData = payload.new || payload.old; // depending on event type
+         const resData = payload.new || payload.old;
          if (resData && resData.barbero_name === selectedBarber.name && resData.fecha === selectedDate) {
-            // Force re-fetch immediately on DB mutation (create/update/delete)
-            fetchBookedSlots();
+            console.log('[PeluLink] 🔄 Cambio en tiempo real detectado, re-fetching...');
+            fetchReservasOcupadas();
          }
       })
       .subscribe();
@@ -421,21 +458,30 @@ export default function BarbershopPage() {
                   ) : (
                     <div className="grid grid-cols-3 gap-3">
                       {timeSlots.map(time => {
-                        let normalizedTime = time.trim().toUpperCase();
-                        if (/^0\d:/.test(normalizedTime)) normalizedTime = normalizedTime.substring(1);
-                        
+                        const horaBtn = normalizeHora(time);
                         const isPast = isTimeSlotPast(time, selectedDate);
-                        const isBookedDirect = bookedSlots.includes(normalizedTime);
-                        const isBooked = isBookedDirect || isPast;
+                        const isOcupado = reservasOcupadas.some(h => h === horaBtn);
+                        const isDisabled = isOcupado || isPast;
                         
                         return (
                           <button 
                             key={time}
-                            disabled={isBooked}
-                            onClick={() => setSelectedTime(time)}
+                            disabled={isDisabled}
+                            onClick={() => {
+                              if (isDisabled) return; // extra safety
+                              setSelectedTime(time);
+                            }}
+                            style={isDisabled ? {
+                              backgroundColor: '#222',
+                              color: '#666',
+                              opacity: 0.5,
+                              pointerEvents: 'none',
+                              cursor: 'not-allowed',
+                              borderColor: '#333'
+                            } : undefined}
                             className={`py-3 rounded-xl border text-sm font-bold transition-all ${
-                              isBooked 
-                                ? 'bg-[#333333] border-gray-800 text-gray-500 opacity-25 pointer-events-none cursor-not-allowed'
+                              isDisabled 
+                                ? ''
                                 : selectedTime === time 
                                   ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
                                   : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50 hover:bg-[#222]'
@@ -513,10 +559,10 @@ export default function BarbershopPage() {
               <div className="p-6 border-t border-gray-800 bg-[#151515]">
               {step === 1 ? (
                 <button 
-                  disabled={!selectedDate || !selectedTime || loadingSlots || bookedSlots.includes(selectedTime.trim().toUpperCase())}
+                  disabled={!selectedDate || !selectedTime || loadingSlots || reservasOcupadas.some(h => h === normalizeHora(selectedTime))}
                   onClick={() => setStep(2)}
                   className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
-                    (!loadingSlots && selectedDate && selectedTime && !bookedSlots.includes(selectedTime.trim().toUpperCase()))
+                    (!loadingSlots && selectedDate && selectedTime && !reservasOcupadas.some(h => h === normalizeHora(selectedTime)))
                       ? 'bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
                       : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
                   }`}
