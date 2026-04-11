@@ -4,17 +4,38 @@ import { supabase } from '../supabaseClient';
 
 /* =====================================================
    FUNCIÓN UNIVERSAL DE NORMALIZACIÓN DE HORARIOS
-   Convierte CUALQUIER formato de hora a una forma canónica
-   para que la comparación SIEMPRE funcione.
-   Ej: "09:00 AM" → "9:00 AM", "9:00 am" → "9:00 AM"
+   Convierte CUALQUIER formato de hora a una forma canónica.
+   
+   Maneja DOS formatos de entrada:
+   1) Formato UI (12h):  "09:00 AM" → "9:00 AM"
+   2) Formato DB (24h):  "09:00:00" → "9:00 AM", "13:00:00" → "1:00 PM"
+   
+   Siempre devuelve: "H:MM AM/PM" (sin cero inicial)
    ===================================================== */
 function normalizeHora(raw) {
   if (!raw) return '';
-  let t = String(raw).trim().toUpperCase();
+  let t = String(raw).trim();
+
+  // CASO 1: Formato 24h de Supabase (ej: "09:00:00", "13:00:00", "09:00")
+  // Detectar si NO tiene AM/PM → es formato 24h
+  if (!/am|pm/i.test(t)) {
+    const parts = t.split(':');
+    let hours = parseInt(parts[0], 10);
+    const mins = parseInt(parts[1], 10) || 0;
+    
+    if (isNaN(hours)) return '';
+    
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    if (hours === 0) hours = 12;        // medianoche → 12 AM
+    else if (hours > 12) hours -= 12;   // 13→1, 14→2, etc.
+    
+    return `${hours}:${String(mins).padStart(2, '0')} ${ampm}`;
+  }
+  
+  // CASO 2: Ya tiene AM/PM (viene del UI, ej: "09:00 AM")
+  t = t.toUpperCase().replace(/\s+/g, ' ');
   // Quitar cero inicial: "09:00 AM" → "9:00 AM"
   if (/^0\d:/.test(t)) t = t.substring(1);
-  // Normalizar espacios múltiples
-  t = t.replace(/\s+/g, ' ');
   return t;
 }
 
