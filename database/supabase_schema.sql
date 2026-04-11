@@ -20,6 +20,7 @@ CREATE TABLE barbershops (
     whatsapp VARCHAR(20) NOT NULL,
     services JSONB DEFAULT '[]'::JSONB,
     slug VARCHAR(100) UNIQUE NOT NULL,
+    pin_acceso VARCHAR(6) NOT NULL DEFAULT '1234',  -- PIN de acceso del dueño
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

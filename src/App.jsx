@@ -14,6 +14,7 @@ import BusinessRegister from './pages/BusinessRegister';
 import BarbershopPage from './pages/BarbershopPage';
 import Agenda from './pages/Agenda';
 import MiPlan from './pages/MiPlan';
+import OwnerDashboard from './pages/OwnerDashboard';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/registro-negocio" element={<BusinessRegister />} />
         <Route path="/mi-plan" element={<MiPlan />} />
+        <Route path="/dashboard/:slug" element={<OwnerDashboard />} />
         <Route path="/:slug" element={<BarbershopPage />} />
       </Routes>
     </BrowserRouter>

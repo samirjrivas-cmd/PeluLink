@@ -54,6 +54,7 @@ export default function BusinessRegister() {
 
   const [vendedorCode, setVendedorCode] = useState('');
   const [validVendedorNombre, setValidVendedorNombre] = useState('');
+  const [pinAcceso, setPinAcceso] = useState('');
 
   const handleSubmitStep1 = async (e) => {
     e.preventDefault();
@@ -118,7 +119,8 @@ export default function BusinessRegister() {
         whatsapp: sanitizedShopPhone,
         services: servicesArray,
         slug: slug,
-        foto_url: publicImageUrl
+        foto_url: publicImageUrl,
+        pin_acceso: pinAcceso || '1234'
       };
 
       const { data: shopData, error: shopError } = await supabase
@@ -278,6 +280,16 @@ export default function BusinessRegister() {
                 value={formData.services} onChange={e => setFormData({...formData, services: e.target.value})}
                 className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 min-h-[100px] text-white focus:outline-none focus:border-[#D4AF37] transition-all scrollbar-hide text-sm leading-relaxed"
               ></textarea>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold tracking-wide text-gray-300">🔒 Crea tu PIN de Acceso (4-6 dígitos)</label>
+              <input 
+                type="password" required maxLength={6} minLength={4} placeholder="Ej. 4821"
+                value={pinAcceso} onChange={e => setPinAcceso(e.target.value.replace(/\D/g, ''))}
+                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-white text-center text-2xl tracking-[0.8rem] font-bold focus:outline-none focus:border-[#D4AF37] transition-all"
+              />
+              <p className="text-[10px] text-gray-500">Este PIN será tu clave para entrar a tu panel de administración.</p>
             </div>
 
              <div className="flex gap-4 mt-4">
