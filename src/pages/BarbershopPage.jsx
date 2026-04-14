@@ -447,34 +447,7 @@ export default function BarbershopPage() {
             Bienvenidos  a nuestro local en <strong>{shop.municipality}</strong>. 
             Directamente administrado por <strong>{shop.owner_name}</strong>.
           </p>
-          {serviciosList.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-xs uppercase tracking-widest text-[#D4AF37] font-bold mb-3">Servicios Disponibles</h3>
-              <div className="flex flex-wrap gap-2">
-                {serviciosList.map((srvObj) => (
-                  <button 
-                    key={srvObj.id} 
-                    onClick={() => handleSelectService(srvObj)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm ${
-                      selectedService === srvObj.nombre 
-                        ? 'bg-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-105' 
-                        : 'bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#e0b93a] hover:bg-[#D4AF37]/20 hover:scale-105'
-                    }`}
-                  >
-                    {srvObj.nombre}
-                    {srvObj.duracion_min > 20 && (
-                      <span className="ml-1 opacity-70">({srvObj.duracion_min}m)</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              {selectedService && selectedDuracion > 20 && (
-                <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
-                  ⏱️ Este servicio requiere <strong className="text-[#D4AF37]">{selectedDuracion} min</strong> ({bloquesNecesarios} bloques de 20 min)
-                </p>
-              )}
-            </div>
-          )}
+          {/* Global services block removed because user asked them to be on the professional card */}
         </section>
 
         <section>
@@ -501,7 +474,24 @@ export default function BarbershopPage() {
                   </div>
                   
                   <h3 className="text-2xl font-bold text-white mb-1.5 drop-shadow-md relative z-10">{barber.name}</h3>
-                  <p className="text-[#D4AF37] text-xs font-bold mb-8 uppercase tracking-widest relative z-10">{barber.role}</p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 mb-6 relative z-10">
+                    {serviciosList.map((srvObj) => (
+                      <button 
+                        key={srvObj.id} 
+                        onClick={() => handleSelectService(srvObj)}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm ${
+                          selectedService === srvObj.nombre 
+                            ? 'bg-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-105' 
+                            : 'bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#e0b93a] hover:bg-[#D4AF37]/20 hover:scale-105'
+                        }`}
+                      >
+                        {srvObj.nombre} {srvObj.duracion_min > 20 && `(${srvObj.duracion_min}m)`}
+                      </button>
+                    ))}
+                    {serviciosList.length === 0 && (
+                       <span className="text-gray-500 text-xs italic">Sin servicios asignados</span>
+                    )}
+                  </div>
                   
                   <button 
                     disabled={!selectedService}

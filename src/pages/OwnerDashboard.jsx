@@ -21,8 +21,11 @@ export default function OwnerDashboard() {
   // Modals
   const [modalCitas, setModalCitas] = useState(false);
   const [modalProfesionales, setModalProfesionales] = useState(false);
+  const [modalServicios, setModalServicios] = useState(false);
   const [citasList, setCitasList] = useState([]);
   const [profesionalesList, setProfesionalesList] = useState([]);
+  const [serviciosList, setServiciosList] = useState([]);
+  const [masterServices] = useState(['Corte Hombre', 'Corte Niño', 'Barba', 'Cejas', 'Corte Mujer', 'Secado', 'Planchado', 'Balayage', 'Manicura', 'Pedicura']);
   const [loadingModal, setLoadingModal] = useState(false);
 
   // Edit Professional
@@ -119,6 +122,75 @@ export default function OwnerDashboard() {
       .order('name', { ascending: true });
     setProfesionalesList(data || []);
     setLoadingModal(false);
+  };
+
+  // ==========================================
+  // MODAL: SERVICIOS
+  // ==========================================
+  const openModalServicios = async () => {
+    if (!shop) return;
+    setModalServicios(true);
+    setLoadingModal(true);
+    
+    // Fetch user defined services
+    const { data } = await supabase
+      .from('servicios')
+      .select('*')
+      .eq('barberia_id', shop.id)
+      .order('nombre', { ascending: true });
+      
+    const fetched = data || [];
+    const merged = masterServices.map(masterName => {
+      const existing = fetched.find(s => s.nombre === masterName);
+      if (existing) return existing;
+      return { nombre: masterName, duracion_min: 20, activo: false, isNew: true };
+    });
+    
+    fetched.forEach(dbSrv => {
+      if (!masterServices.includes(dbSrv.nombre)) {
+        merged.push(dbSrv);
+      }
+    });
+    
+    setServiciosList(merged);
+    setLoadingModal(false);
+  };
+
+  const toggleServicioActivo = (idx) => {
+    const updated = [...serviciosList];
+    updated[idx].activo = !updated[idx].activo;
+    setServiciosList(updated);
+  };
+
+  const updateServicioDuracion = (idx, val) => {
+    const updated = [...serviciosList];
+    updated[idx].duracion_min = parseInt(val) || 20;
+    setServiciosList(updated);
+  };
+
+  const handleSaveServicios = async () => {
+    setSavingEdit(true);
+    try {
+      const upserts = serviciosList.filter(s => s.activo || s.id).map(s => ({
+        ...(s.id ? { id: s.id } : {}),
+        barberia_id: shop.id,
+        nombre: s.nombre,
+        duracion_min: s.duracion_min,
+        activo: s.activo
+      }));
+      
+      if (upserts.length > 0) {
+        const { error } = await supabase.from('servicios').upsert(upserts);
+        if (error) throw error;
+      }
+      
+      alert('Servicios actualizados correctamente.');
+      setModalServicios(false);
+    } catch (err) {
+      alert('Error guardando servicios: ' + err.message);
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const startEditPro = (pro) => {
@@ -332,6 +404,15 @@ export default function OwnerDashboard() {
 
         {/* Navigation Buttons */}
         <div className="flex flex-col gap-4">
+          <button onClick={openModalServicios} className="w-full bg-[#111] border border-gray-800 hover:border-purple-400/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(168,85,247,0.05)]">
+            <div className="w-14 h-14 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">✂️</div>
+            <div className="text-left flex-1">
+              <h3 className="text-lg font-bold text-white group-hover:text-purple-400 transition-colors">Configurar Servicios</h3>
+              <p className="text-gray-500 text-xs">Añadir/editar servicios y sus duraciones</p>
+            </div>
+            <span className="text-gray-600 text-xl group-hover:text-purple-400 transition-colors">→</span>
+          </button>
+
           <button onClick={() => navigate(`/agenda?barberia=${shop.id}`)} className="w-full bg-[#111] border border-gray-800 hover:border-[#D4AF37]/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(212,175,55,0.05)]">
             <div className="w-14 h-14 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📅</div>
             <div className="text-left flex-1">
@@ -577,6 +658,65 @@ export default function OwnerDashboard() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          MODAL: SERVICIOS
+          ========================================== */}
+      {modalServicios && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-0 animate-[fadeIn_0.2s_ease-out]" onClick={() => setModalServicios(false)}>
+          <div className="bg-[#111] border border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
+              <div>
+                <h3 className="text-xl font-bold text-white">✂️ Configurar Servicios</h3>
+                <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Selecciona lo que ofreces</p>
+              </div>
+              <button onClick={() => setModalServicios(false)} className="text-gray-500 hover:text-white p-2 text-lg">✕</button>
+            </div>
+
+            <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
+              {loadingModal ? (
+                <div className="flex flex-col items-center justify-center p-10">
+                  <div className="w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mb-3"></div>
+                  <p className="text-sm text-purple-400 font-bold tracking-widest uppercase animate-pulse">Cargando...</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {serviciosList.map((srv, idx) => (
+                    <div key={idx} className={`border rounded-xl p-4 flex items-center justify-between gap-4 transition-all cursor-pointer ${
+                      srv.activo ? 'bg-[#1a1a1a] border-purple-500/50' : 'bg-[#0a0a0a] border-gray-800 opacity-60 hover:opacity-100'
+                    }`} onClick={() => toggleServicioActivo(idx)}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={srv.activo} readOnly className="w-4 h-4 accent-purple-500" />
+                          <h4 className={`font-bold text-sm ${srv.activo ? 'text-white' : 'text-gray-400'}`}>{srv.nombre}</h4>
+                        </div>
+                      </div>
+                      
+                      {srv.activo && (
+                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                          <label className="text-xs text-gray-500 font-bold">MINS</label>
+                          <input type="number" value={srv.duracion_min} onChange={e => updateServicioDuracion(idx, e.target.value)} min="10" step="10"
+                            className="bg-[#0a0a0a] border border-gray-700 rounded-lg w-16 p-2 text-white text-center font-bold focus:outline-none focus:border-purple-500" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-gray-800 bg-[#151515]">
+              <button disabled={savingEdit || loadingModal} onClick={handleSaveServicios}
+                className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
+                  savingEdit ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+                    : 'bg-gradient-to-r from-purple-500 to-purple-800 text-white hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
+                }`}>
+                {savingEdit ? 'GUARDANDO...' : '💾 GUARDAR SERVICIOS'}
+              </button>
             </div>
           </div>
         </div>
