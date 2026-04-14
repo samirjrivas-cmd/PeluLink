@@ -56,6 +56,7 @@ export default function BarbershopPage() {
   const [clientPhone, setClientPhone] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+  const [selectedServiceBarberId, setSelectedServiceBarberId] = useState(null);
   const [reservasOcupadas, setReservasOcupadas] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -335,9 +336,10 @@ export default function BarbershopPage() {
   };
 
   // Select a service and set its duration
-  const handleSelectService = (srvObj) => {
+  const handleSelectService = (srvObj, barberId) => {
     setSelectedService(srvObj.nombre);
     setSelectedDuracion(srvObj.duracion_min || 20);
+    setSelectedServiceBarberId(barberId);
     setSelectedTime(''); // clear selection since blocks changed
     console.log('[PeluLink] Servicio seleccionado:', srvObj.nombre, '| Duración:', srvObj.duracion_min, 'min |', Math.ceil((srvObj.duracion_min || 20) / 20), 'bloques');
   };
@@ -475,12 +477,12 @@ export default function BarbershopPage() {
                   
                   <h3 className="text-2xl font-bold text-white mb-1.5 drop-shadow-md relative z-10">{barber.name}</h3>
                   <div className="flex flex-wrap items-center justify-center gap-2 mb-6 relative z-10">
-                    {serviciosList.map((srvObj) => (
+                    {serviciosList.filter(s => s.barbero_id === barber.id).map((srvObj) => (
                       <button 
                         key={srvObj.id} 
-                        onClick={() => handleSelectService(srvObj)}
+                        onClick={() => handleSelectService(srvObj, barber.id)}
                         className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm ${
-                          selectedService === srvObj.nombre 
+                          selectedService === srvObj.nombre && selectedServiceBarberId === barber.id
                             ? 'bg-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-105' 
                             : 'bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#e0b93a] hover:bg-[#D4AF37]/20 hover:scale-105'
                         }`}
@@ -488,16 +490,16 @@ export default function BarbershopPage() {
                         {srvObj.nombre} {srvObj.duracion_min > 20 && `(${srvObj.duracion_min}m)`}
                       </button>
                     ))}
-                    {serviciosList.length === 0 && (
+                    {serviciosList.filter(s => s.barbero_id === barber.id).length === 0 && (
                        <span className="text-gray-500 text-xs italic">Sin servicios asignados</span>
                     )}
                   </div>
                   
                   <button 
-                    disabled={!selectedService}
+                    disabled={selectedServiceBarberId !== barber.id || !selectedService}
                     onClick={() => handleOpenModal(barber)}
                     className={`w-full py-3.5 border font-bold uppercase tracking-wider text-sm rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 relative z-10 ${
-                      selectedService
+                      selectedServiceBarberId === barber.id && selectedService
                         ? 'bg-[#111] border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366] hover:text-black shadow-[0_0_15px_rgba(37,211,102,0.05)] hover:shadow-[0_0_20px_rgba(37,211,102,0.3)]'
                         : 'bg-[#1a1a1a] border-gray-800 text-gray-500 cursor-not-allowed'
                     }`}

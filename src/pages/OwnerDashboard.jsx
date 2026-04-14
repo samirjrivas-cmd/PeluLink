@@ -22,6 +22,7 @@ export default function OwnerDashboard() {
   const [modalCitas, setModalCitas] = useState(false);
   const [modalProfesionales, setModalProfesionales] = useState(false);
   const [modalServicios, setModalServicios] = useState(false);
+  const [selectedConfigPro, setSelectedConfigPro] = useState(null);
   const [citasList, setCitasList] = useState([]);
   const [profesionalesList, setProfesionalesList] = useState([]);
   const [serviciosList, setServiciosList] = useState([]);
@@ -130,13 +131,29 @@ export default function OwnerDashboard() {
   const openModalServicios = async () => {
     if (!shop) return;
     setModalServicios(true);
+    setSelectedConfigPro(null);
     setLoadingModal(true);
     
-    // Fetch user defined services
+    // Fetch professionals to select which one to configure
+    const { data } = await supabase
+      .from('barberos')
+      .select('*')
+      .eq('barberia_id', shop.id)
+      .order('name', { ascending: true });
+    setProfesionalesList(data || []);
+    setLoadingModal(false);
+  };
+
+  const handleSelectProForServices = async (pro) => {
+    setSelectedConfigPro(pro);
+    setLoadingModal(true);
+    
+    // Fetch user defined services for THIS professional
     const { data } = await supabase
       .from('servicios')
       .select('*')
       .eq('barberia_id', shop.id)
+      .eq('barbero_id', pro.id)
       .order('nombre', { ascending: true });
       
     const fetched = data || [];
@@ -169,11 +186,13 @@ export default function OwnerDashboard() {
   };
 
   const handleSaveServicios = async () => {
+    if (!selectedConfigPro) return;
     setSavingEdit(true);
     try {
       const upserts = serviciosList.filter(s => s.activo || s.id).map(s => ({
         ...(s.id ? { id: s.id } : {}),
         barberia_id: shop.id,
+        barbero_id: selectedConfigPro.id,
         nombre: s.nombre,
         duracion_min: s.duracion_min,
         activo: s.activo
@@ -184,8 +203,8 @@ export default function OwnerDashboard() {
         if (error) throw error;
       }
       
-      alert('Servicios actualizados correctamente.');
-      setModalServicios(false);
+      alert(`Servicios actualizados correctamente para ${selectedConfigPro.name}.`);
+      setSelectedConfigPro(null);
     } catch (err) {
       alert('Error guardando servicios: ' + err.message);
     } finally {
@@ -672,9 +691,15 @@ export default function OwnerDashboard() {
             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
               <div>
                 <h3 className="text-xl font-bold text-white">✂️ Configurar Servicios</h3>
-                <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Selecciona lo que ofreces</p>
+                <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">
+                  {selectedConfigPro ? `SERVICIOS DE ${selectedConfigPro.name}` : 'SELECCIONA EL PROFESIONAL'}
+                </p>
               </div>
-              <button onClick={() => setModalServicios(false)} className="text-gray-500 hover:text-white p-2 text-lg">✕</button>
+              <button 
+                onClick={() => { if (selectedConfigPro) { setSelectedConfigPro(null); } else { setModalServicios(false); } }} 
+                className="text-gray-500 hover:text-white p-2 text-lg">
+                {selectedConfigPro ? '←' : '✕'}
+              </button>
             </div>
 
             <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
@@ -683,6 +708,31 @@ export default function OwnerDashboard() {
                   <div className="w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mb-3"></div>
                   <p className="text-sm text-purple-400 font-bold tracking-widest uppercase animate-pulse">Cargando...</p>
                 </div>
+              ) : !selectedConfigPro ? (
+                 /* LISTA DE PROFESIONALES */
+                 <div className="flex flex-col gap-3">
+                   {profesionalesList.length === 0 ? (
+                     <div className="text-center p-8 text-gray-500">
+                       <span className="text-3xl block mb-2">👤</span>
+                       <p className="font-semibold">No hay profesionales registrados</p>
+                       <p className="text-xs mt-1">Agrega profesionales primero para configurar sus servicios.</p>
+                     </div>
+                   ) : (
+                     profesionalesList.map(pro => (
+                       <div key={pro.id} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-4 flex items-center gap-4 hover:border-purple-500/50 cursor-pointer transition-all group" onClick={() => handleSelectProForServices(pro)}>
+                         <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-purple-400 transition-all flex-shrink-0">
+                           <img src={pro.foto_url || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400'} alt={pro.name}
+                             className="w-full h-full object-cover" onError={e => { e.target.src = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400'; }} />
+                         </div>
+                         <div className="flex-1 min-w-0">
+                           <h4 className="text-white font-bold text-sm truncate">{pro.name}</h4>
+                           <p className="text-[#D4AF37] text-xs font-semibold truncate">{pro.role || 'Profesional'}</p>
+                         </div>
+                         <span className="text-gray-600 text-xl group-hover:text-purple-400 transition-colors">→</span>
+                       </div>
+                     ))
+                   )}
+                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
                   {serviciosList.map((srv, idx) => (
@@ -709,15 +759,17 @@ export default function OwnerDashboard() {
               )}
             </div>
             
-            <div className="p-6 border-t border-gray-800 bg-[#151515]">
-              <button disabled={savingEdit || loadingModal} onClick={handleSaveServicios}
-                className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
-                  savingEdit ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
-                    : 'bg-gradient-to-r from-purple-500 to-purple-800 text-white hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
-                }`}>
-                {savingEdit ? 'GUARDANDO...' : '💾 GUARDAR SERVICIOS'}
-              </button>
-            </div>
+            {selectedConfigPro && (
+              <div className="p-6 border-t border-gray-800 bg-[#151515]">
+                <button disabled={savingEdit || loadingModal} onClick={handleSaveServicios}
+                  className={`w-full py-4 rounded-xl text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
+                    savingEdit ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+                      : 'bg-gradient-to-r from-purple-500 to-purple-800 text-white hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
+                  }`}>
+                  {savingEdit ? 'GUARDANDO...' : '💾 GUARDAR SERVICIOS'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

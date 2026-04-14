@@ -25,6 +25,19 @@ CREATE TABLE barbershops (
 );
 
 -- =====================================================
+-- MÓDULO EXPERTO: Barberos / Profesionales
+-- =====================================================
+CREATE TABLE barberos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    barberia_id UUID NOT NULL REFERENCES barbershops(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) DEFAULT 'Profesional',
+    whatsapp VARCHAR(20),
+    foto_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
 -- MÓDULO SaaS: Pagos de Suscripción Mensual
 -- =====================================================
 CREATE TABLE pagos_suscripcion (
@@ -48,12 +61,16 @@ CREATE TABLE pagos_suscripcion (
 CREATE TABLE servicios (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     barberia_id UUID NOT NULL REFERENCES barbershops(id) ON DELETE CASCADE,
+    barbero_id UUID REFERENCES barberos(id) ON DELETE CASCADE,
     nombre VARCHAR(150) NOT NULL,              -- "Corte Clásico", "Mechas Balayage"
     duracion_min INTEGER NOT NULL DEFAULT 20,  -- 20, 40, 60, 80, 100, 120...
     precio DECIMAL(10, 2),                     -- Precio opcional
     activo BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Migración para la base de datos existente:
+-- ALTER TABLE servicios ADD COLUMN barbero_id UUID REFERENCES barberos(id) ON DELETE CASCADE;
 
 -- Opcional: Configurar políticas de seguridad RLS si el frontend se conectará directo más adelante
 -- ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
