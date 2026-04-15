@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
-const MUNICIPALITIES = [
-  'Mejía', 'Sucre', 'Ribero', 'Mariño', 'Cajigal', 'Benítez', 
-  'Bermúdez', 'Arismendi', 'Andrés Eloy Blanco', 'Andrés Mata', 
-  'Valdez', 'Libertador', 'Cruz Salmerón Acosta', 'Bolívar', 'Soublette'
-];
+const VENEZUELA_LOCATIONS = {
+  'Sucre': ['Mejía', 'Sucre', 'Ribero', 'Mariño', 'Cajigal', 'Benítez', 'Bermúdez', 'Arismendi', 'Andrés Eloy Blanco', 'Andrés Mata', 'Valdez', 'Libertador', 'Cruz Salmerón Acosta', 'Bolívar', 'Soublette'],
+  'Anzoátegui': ['Sotillo', 'Bolívar', 'Urbaneja', 'Guanta', 'Anaco', 'Aragua', 'Peñalver'],
+  'Monagas': ['Maturín', 'Caripe', 'Piar', 'Ezequiel Zamora', 'Bolívar'],
+  'Nueva Esparta': ['Arismendi', 'Maneiro', 'Mariño', 'García', 'Díaz', 'Tubores', 'Macanao', 'Villalba', 'Antolín del Campo'],
+  'Distrito Capital': ['Libertador'],
+  'Miranda': ['Sucre', 'Baruta', 'Chacao', 'El Hatillo', 'Guaicaipuro', 'Plaza', 'Zamora']
+};
 
 export default function BusinessRegister() {
   const navigate = useNavigate();
@@ -27,6 +30,7 @@ export default function BusinessRegister() {
   const [formData, setFormData] = useState({
     business_name: '',
     owner_name: '',
+    estado: 'Sucre',
     municipality: 'Mejía',
     address: '',
     whatsapp: '',
@@ -116,6 +120,7 @@ export default function BusinessRegister() {
         vendedor_nombre: validVendedorNombre || 'Registro Orgánico (Auto-Gestionado)',
         business_name: formData.business_name,
         owner_name: formData.owner_name,
+        estado: formData.estado,
         municipality: formData.municipality,
         address: formData.address || '',
         whatsapp: sanitizedShopPhone,
@@ -136,6 +141,7 @@ export default function BusinessRegister() {
            const fallbackResp = await supabase.from('barbershops').insert([{
              business_name: formData.business_name,
              owner_name: formData.owner_name,
+             estado: formData.estado,
              municipality: formData.municipality,
              address: formData.address || '',
              whatsapp: sanitizedShopPhone,
@@ -248,12 +254,25 @@ export default function BusinessRegister() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold tracking-wide text-gray-300">Estado</label>
+                <select 
+                  value={formData.estado} onChange={e => {
+                    const newState = e.target.value;
+                    setFormData({...formData, estado: newState, municipality: VENEZUELA_LOCATIONS[newState][0]});
+                  }}
+                  className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-gray-200 focus:outline-none focus:border-[#D4AF37] transition-all"
+                >
+                  {Object.keys(VENEZUELA_LOCATIONS).map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold tracking-wide text-gray-300">Municipio</label>
                 <select 
                   value={formData.municipality} onChange={e => setFormData({...formData, municipality: e.target.value})}
                   className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-gray-200 focus:outline-none focus:border-[#D4AF37] transition-all"
                 >
-                  {MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
+                  {VENEZUELA_LOCATIONS[formData.estado].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
