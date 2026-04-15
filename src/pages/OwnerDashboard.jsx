@@ -22,11 +22,13 @@ export default function OwnerDashboard() {
   const [modalCitas, setModalCitas] = useState(false);
   const [modalProfesionales, setModalProfesionales] = useState(false);
   const [modalServicios, setModalServicios] = useState(false);
+  const [modalEspecialidades, setModalEspecialidades] = useState(false);
   const [selectedConfigPro, setSelectedConfigPro] = useState(null);
   const [citasList, setCitasList] = useState([]);
   const [profesionalesList, setProfesionalesList] = useState([]);
   const [serviciosList, setServiciosList] = useState([]);
-  const [masterServices] = useState(['Corte Hombre', 'Corte Niño', 'Barba', 'Cejas', 'Corte Mujer', 'Secado', 'Planchado', 'Balayage', 'Manicura', 'Pedicura']);
+  const [nuevaEspecialidad, setNuevaEspecialidad] = useState('');
+  const [savingEspecialidad, setSavingEspecialidad] = useState(false);
   const [loadingModal, setLoadingModal] = useState(false);
 
   // Edit Professional
@@ -157,20 +159,80 @@ export default function OwnerDashboard() {
       .order('nombre', { ascending: true });
       
     const fetched = data || [];
-    const merged = masterServices.map(masterName => {
+    const baseServices = shop.services || [];
+    
+    const merged = baseServices.map(masterName => {
       const existing = fetched.find(s => s.nombre === masterName);
       if (existing) return existing;
       return { nombre: masterName, duracion_min: 20, activo: false, isNew: true };
     });
     
     fetched.forEach(dbSrv => {
-      if (!masterServices.includes(dbSrv.nombre)) {
+      if (!baseServices.includes(dbSrv.nombre)) {
         merged.push(dbSrv);
       }
     });
     
     setServiciosList(merged);
     setLoadingModal(false);
+  };
+
+  const handleAddEspecialidad = async () => {
+    if (!nuevaEspecialidad.trim() || !shop) return;
+    setSavingEspecialidad(true);
+
+    try {
+      const currentServices = shop.services || [];
+      const newService = nuevaEspecialidad.trim();
+      
+      if (currentServices.includes(newService)) {
+        alert('Esta especialidad ya existe.');
+        setSavingEspecialidad(false);
+        return;
+      }
+
+      const updatedServices = [...currentServices, newService];
+
+      const { error } = await supabase
+        .from('barbershops')
+        .update({ services: updatedServices })
+        .eq('id', shop.id);
+
+      if (error) {
+        alert('Error al guardar especialidad: ' + error.message);
+      } else {
+        setShop({ ...shop, services: updatedServices });
+        setNuevaEspecialidad('');
+        alert('Especialidad añadida con éxito.');
+      }
+    } catch (err) {
+      alert('Error de conexión.');
+    } finally {
+      setSavingEspecialidad(false);
+    }
+  };
+
+  const removeEspecialidad = async (especialidad) => {
+    const confirmDelete = window.confirm(`¿Seguro que deseas eliminar la especialidad "${especialidad}"? Los profesionales que ya la tengan configurada no la perderán, pero no saldrá como opción principal.`);
+    if (!confirmDelete || !shop) return;
+
+    try {
+      const currentServices = shop.services || [];
+      const updatedServices = currentServices.filter(s => s !== especialidad);
+
+      const { error } = await supabase
+        .from('barbershops')
+        .update({ services: updatedServices })
+        .eq('id', shop.id);
+
+      if (error) {
+        alert('Error al eliminar especialidad.');
+      } else {
+        setShop({ ...shop, services: updatedServices });
+      }
+    } catch {
+      alert('Error de conexión.');
+    }
   };
 
   const toggleServicioActivo = (idx) => {
@@ -423,6 +485,15 @@ export default function OwnerDashboard() {
 
         {/* Navigation Buttons */}
         <div className="flex flex-col gap-4">
+          <button onClick={() => setModalEspecialidades(true)} className="w-full bg-[#111] border border-gray-800 hover:border-pink-400/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(236,72,153,0.05)]">
+            <div className="w-14 h-14 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🌟</div>
+            <div className="text-left flex-1">
+              <h3 className="text-lg font-bold text-white group-hover:text-pink-400 transition-colors">Especialidades</h3>
+              <p className="text-gray-500 text-xs">Administra la lista base de servicios de tu negocio</p>
+            </div>
+            <span className="text-gray-600 text-xl group-hover:text-pink-400 transition-colors">→</span>
+          </button>
+
           <button onClick={openModalServicios} className="w-full bg-[#111] border border-gray-800 hover:border-purple-400/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(168,85,247,0.05)]">
             <div className="w-14 h-14 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">✂️</div>
             <div className="text-left flex-1">
@@ -432,14 +503,6 @@ export default function OwnerDashboard() {
             <span className="text-gray-600 text-xl group-hover:text-purple-400 transition-colors">→</span>
           </button>
 
-          <button onClick={() => navigate(`/agenda?barberia=${shop.id}`)} className="w-full bg-[#111] border border-gray-800 hover:border-[#D4AF37]/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(212,175,55,0.05)]">
-            <div className="w-14 h-14 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📅</div>
-            <div className="text-left flex-1">
-              <h3 className="text-lg font-bold text-white group-hover:text-[#D4AF37] transition-colors">Mi Agenda</h3>
-              <p className="text-gray-500 text-xs">Ver todas las citas, filtrar por fecha y barbero</p>
-            </div>
-            <span className="text-gray-600 text-xl group-hover:text-[#D4AF37] transition-colors">→</span>
-          </button>
 
           <button onClick={() => navigate(`/mi-plan?negocio=${shop.slug}`)} className="w-full bg-[#111] border border-gray-800 hover:border-[#25D366]/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(37,211,102,0.05)]">
             <div className="w-14 h-14 rounded-xl bg-[#25D366]/10 border border-[#25D366]/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">💰</div>
@@ -770,6 +833,59 @@ export default function OwnerDashboard() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* ==========================================
+          MODAL: ESPECIALIDADES
+          ========================================== */}
+      {modalEspecialidades && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-0 animate-[fadeIn_0.2s_ease-out]" onClick={() => setModalEspecialidades(false)}>
+          <div className="bg-[#111] border border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
+              <div>
+                <h3 className="text-xl font-bold text-white">🌟 Especialidades</h3>
+                <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Servicios que ofreces</p>
+              </div>
+              <button onClick={() => setModalEspecialidades(false)} className="text-gray-500 hover:text-white p-2 text-lg">✕</button>
+            </div>
+
+            <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
+              <div className="flex flex-col gap-2 mb-6">
+                <label className="text-xs text-gray-400 font-bold tracking-wide">AÑADIR NUEVA ESPECIALIDAD</label>
+                <div className="flex gap-2">
+                  <input type="text" value={nuevaEspecialidad} onChange={e => setNuevaEspecialidad(e.target.value)}
+                    className="flex-1 bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-pink-500 focus:shadow-[0_0_15px_rgba(236,72,153,0.3)] transition-all" placeholder="Ej. Mechas" />
+                  <button onClick={handleAddEspecialidad} disabled={savingEspecialidad || !nuevaEspecialidad.trim()}
+                    className={`px-5 rounded-xl font-bold tracking-widest text-sm transition-all ${
+                      savingEspecialidad || !nuevaEspecialidad.trim() ? 'bg-gray-800 text-gray-600' : 'bg-pink-500 text-white hover:bg-pink-400'
+                    }`}>
+                    {savingEspecialidad ? '...' : '+'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+                  Agrega las especialidades aquí. Luego, dirígete a <strong className="text-purple-400 font-bold">Configurar Servicios</strong> para asignarle los tiempos de atención a cada profesional según su experiencia con esta especialidad.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-[#D4AF37] font-bold tracking-widest uppercase mb-1">Especialidades Registradas</label>
+                {!shop.services || shop.services.length === 0 ? (
+                  <p className="text-gray-500 text-center py-6 text-sm">No tienes especialidades agregadas. Añade una arriba.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {shop.services.map((srv, idx) => (
+                      <div key={idx} className="bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 group hover:border-[#D4AF37]/50 transition-all">
+                        <span className="text-sm font-semibold text-gray-200">{srv}</span>
+                        <button onClick={() => removeEspecialidad(srv)} className="text-red-900 group-hover:text-red-500 ml-1 transition-colors text-lg" title="Eliminar Especialidad">
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
