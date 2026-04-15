@@ -28,6 +28,7 @@ export default function BusinessRegister() {
     business_name: '',
     owner_name: '',
     municipality: 'Mejía',
+    address: '',
     whatsapp: '',
     services: ''
   });
@@ -116,6 +117,7 @@ export default function BusinessRegister() {
         business_name: formData.business_name,
         owner_name: formData.owner_name,
         municipality: formData.municipality,
+        address: formData.address || '',
         whatsapp: sanitizedShopPhone,
         services: servicesArray,
         slug: slug,
@@ -135,6 +137,7 @@ export default function BusinessRegister() {
              business_name: formData.business_name,
              owner_name: formData.owner_name,
              municipality: formData.municipality,
+             address: formData.address || '',
              whatsapp: sanitizedShopPhone,
              services: servicesArray,
              slug: slug,
@@ -262,6 +265,15 @@ export default function BusinessRegister() {
                   className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all"
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold tracking-wide text-gray-300">Dirección Exacta del Local</label>
+              <textarea 
+                required placeholder="Ej. Calle Independencia con Ayacucho, CC Empresarial..."
+                value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}
+                className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3.5 text-white focus:outline-none focus:border-[#D4AF37] transition-all text-sm leading-relaxed min-h-[60px]"
+              ></textarea>
             </div>
 
             <div className="flex flex-col gap-2">

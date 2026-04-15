@@ -444,10 +444,13 @@ export default function BarbershopPage() {
       <div className="max-w-6xl mx-auto px-6 md:px-12 mt-8">
         <section className="mb-12 bg-[#111] border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 blur-[50px] rounded-full pointer-events-none"></div>
-          <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800/80 pb-4">Detalles del Negocio</h2>
+          <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800/80 pb-4">Dirección:</h2>
           <p className="text-gray-400 leading-relaxed text-sm md:text-base max-w-3xl">
-            Bienvenidos  a nuestro local en <strong>{shop.municipality}</strong>. 
-            Directamente administrado por <strong>{shop.owner_name}</strong>.
+            {shop.address ? (
+              <span className="text-white">{shop.address}</span>
+            ) : (
+              <>Bienvenidos a nuestro local en <strong>{shop.municipality}</strong>. Directamente administrado por <strong>{shop.owner_name}</strong>.</>
+            )}
           </p>
           {/* Global services block removed because user asked them to be on the professional card */}
         </section>
@@ -476,6 +479,7 @@ export default function BarbershopPage() {
                   </div>
                   
                   <h3 className="text-2xl font-bold text-white mb-1.5 drop-shadow-md relative z-10">{barber.name}</h3>
+                  <p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-[0.2em] mb-4 relative z-10">{barber.role || 'Profesional'}</p>
                   <div className="flex flex-wrap items-center justify-center gap-2 mb-6 relative z-10">
                     {serviciosList.filter(s => s.barbero_id === barber.id).map((srvObj) => (
                       <button 
