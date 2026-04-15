@@ -644,8 +644,13 @@ export default function OwnerDashboard() {
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidad / Rol</label>
-                    <input type="text" value={editRole} onChange={e => setEditRole(e.target.value)}
-                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all" placeholder="Ej. Master Barber" />
+                    <select value={editRole} onChange={e => setEditRole(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all">
+                      <option value="">Selecciona una Especialidad</option>
+                      {shop.services && shop.services.map((srv, idx) => (
+                        <option key={idx} value={srv}>{srv}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <button disabled={savingEdit || !editName.trim()} onClick={handleSaveEdit}
@@ -691,8 +696,13 @@ export default function OwnerDashboard() {
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidad / Rol</label>
-                    <input type="text" value={addRole} onChange={e => setAddRole(e.target.value)}
-                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all" placeholder="Ej. Estilista, Colorista..." />
+                    <select value={addRole} onChange={e => setAddRole(e.target.value)}
+                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all">
+                      <option value="">Selecciona una Especialidad</option>
+                      {shop.services && shop.services.map((srv, idx) => (
+                        <option key={idx} value={srv}>{srv}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <button disabled={savingAdd || !addName.trim()} onClick={handleAddPro}
