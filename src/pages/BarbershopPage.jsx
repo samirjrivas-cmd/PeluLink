@@ -481,7 +481,18 @@ export default function BarbershopPage() {
                   <h3 className="text-2xl font-bold text-white mb-1.5 drop-shadow-md relative z-10">{barber.name}</h3>
                   <p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-[0.2em] mb-4 relative z-10">{barber.role || 'Profesional'}</p>
                   <div className="flex flex-wrap items-center justify-center gap-2 mb-6 relative z-10">
-                    {serviciosList.filter(s => s.barbero_id === barber.id).map((srvObj) => (
+                    {(() => {
+                      const activeServices = serviciosList.filter(s => s.barbero_id === barber.id);
+                      if (barber.role && barber.role !== 'Profesional' && !activeServices.find(s => s.nombre === barber.role)) {
+                        activeServices.unshift({
+                          id: `role-${barber.id}`,
+                          nombre: barber.role,
+                          duracion_min: 20, // Default duration if not explicitly set in Configurar Servicios
+                          barbero_id: barber.id
+                        });
+                      }
+                      return activeServices;
+                    })().map((srvObj) => (
                       <button 
                         key={srvObj.id} 
                         onClick={() => handleSelectService(srvObj, barber.id)}
@@ -494,7 +505,7 @@ export default function BarbershopPage() {
                         {srvObj.nombre} {srvObj.duracion_min > 20 && `(${srvObj.duracion_min}m)`}
                       </button>
                     ))}
-                    {serviciosList.filter(s => s.barbero_id === barber.id).length === 0 && (
+                    {serviciosList.filter(s => s.barbero_id === barber.id).length === 0 && (!barber.role || barber.role === 'Profesional') && (
                        <span className="text-gray-500 text-xs italic">Sin servicios asignados</span>
                     )}
                   </div>
