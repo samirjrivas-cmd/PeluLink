@@ -643,14 +643,31 @@ export default function OwnerDashboard() {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidad / Rol</label>
-                    <select value={editRole} onChange={e => setEditRole(e.target.value)}
-                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all">
-                      <option value="">Selecciona una Especialidad</option>
+                    <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidades (Puedes elegir varias)</label>
+                    <div className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 max-h-40 overflow-y-auto custom-scrollbar flex flex-col gap-2">
                       {shop.services && shop.services.map((srv, idx) => (
-                        <option key={idx} value={srv}>{srv}</option>
+                        <label key={idx} className="flex items-center gap-3 text-white text-sm cursor-pointer hover:text-[#D4AF37] transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={editRole ? editRole.split(', ').includes(srv) : false}
+                            onChange={(e) => {
+                              let currentRoles = editRole ? editRole.split(', ') : [];
+                              if (e.target.checked) {
+                                currentRoles.push(srv);
+                              } else {
+                                currentRoles = currentRoles.filter(r => r !== srv);
+                              }
+                              setEditRole(currentRoles.join(', '));
+                            }}
+                            className="w-4 h-4 accent-[#D4AF37] rounded border-gray-700 cursor-pointer"
+                          />
+                          {srv}
+                        </label>
                       ))}
-                    </select>
+                      {(!shop.services || shop.services.length === 0) && (
+                        <span className="text-gray-500 text-xs">Agrega especialidades en la pantalla anterior primero</span>
+                      )}
+                    </div>
                   </div>
 
                   <button disabled={savingEdit || !editName.trim()} onClick={handleSaveEdit}
@@ -695,14 +712,31 @@ export default function OwnerDashboard() {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidad / Rol</label>
-                    <select value={addRole} onChange={e => setAddRole(e.target.value)}
-                      className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-all">
-                      <option value="">Selecciona una Especialidad</option>
+                    <label className="text-xs text-gray-400 font-bold tracking-wide">Especialidades (Puedes elegir varias)</label>
+                    <div className="bg-[#0a0a0a] border border-gray-700 rounded-xl p-3.5 max-h-40 overflow-y-auto custom-scrollbar flex flex-col gap-2">
                       {shop.services && shop.services.map((srv, idx) => (
-                        <option key={idx} value={srv}>{srv}</option>
+                        <label key={idx} className="flex items-center gap-3 text-white text-sm cursor-pointer hover:text-[#D4AF37] transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={addRole ? addRole.split(', ').includes(srv) : false}
+                            onChange={(e) => {
+                              let currentRoles = addRole ? addRole.split(', ') : [];
+                              if (e.target.checked) {
+                                currentRoles.push(srv);
+                              } else {
+                                currentRoles = currentRoles.filter(r => r !== srv);
+                              }
+                              setAddRole(currentRoles.join(', '));
+                            }}
+                            className="w-4 h-4 accent-[#D4AF37] rounded border-gray-700 cursor-pointer"
+                          />
+                          {srv}
+                        </label>
                       ))}
-                    </select>
+                      {(!shop.services || shop.services.length === 0) && (
+                        <span className="text-gray-500 text-xs">Agrega especialidades en la pantalla anterior primero</span>
+                      )}
+                    </div>
                   </div>
 
                   <button disabled={savingAdd || !addName.trim()} onClick={handleAddPro}

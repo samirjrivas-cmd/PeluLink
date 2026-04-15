@@ -482,22 +482,31 @@ export default function BarbershopPage() {
                   <p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-[0.2em] mb-4 relative z-10">{barber.role || 'Profesional'}</p>
                   <div className="flex flex-wrap items-center justify-center gap-2 mb-6 relative z-10">
                     {(() => {
-                      // Implementar filtro cruzando información del rol con la lista de servicios
-                      const activeServices = serviciosList.filter(s => {
-                        if (!barber.role || barber.role === 'Profesional' || barber.role === 'Especialista') return false;
-                        const roleLower = barber.role.toLowerCase().trim();
-                        const servLower = s.nombre.toLowerCase().trim();
-                        // Coincide el nombre o está incluido
-                        return roleLower === servLower || roleLower.includes(servLower) || servLower.includes(roleLower);
-                      });
+                      const activeServices = [];
+                      if (barber.role && barber.role !== 'Profesional' && barber.role !== 'Especialista') {
+                        const roles = barber.role.split(',').map(r => r.trim()).filter(r => r);
+                        roles.forEach((r, idx) => {
+                          const rnLower = r.toLowerCase();
+                          // Is there any service in serviciosList matching this EXACT role or containing it?
+                          const matchedServ = serviciosList.find(s => {
+                             const snLower = s.nombre.toLowerCase().trim();
+                             return snLower === rnLower || snLower.includes(rnLower) || rnLower.includes(snLower);
+                          });
 
-                      // Si el profesional tiene un rol definido pero no encontró coincidencias en la lista de servicios, inyectarlo como fallback
-                      if (barber.role && barber.role !== 'Profesional' && barber.role !== 'Especialista' && activeServices.length === 0) {
-                        activeServices.push({
-                          id: `role-${barber.id}`,
-                          nombre: barber.role,
-                          duracion_min: 20, 
-                          barbero_id: barber.id
+                          if (matchedServ) {
+                            // Avoid duplicates if two roles match the same generic service
+                            if (!activeServices.find(as => as.id === matchedServ.id)) {
+                               activeServices.push(matchedServ);
+                            }
+                          } else {
+                            // Fallback inject the role as a bookable generic service
+                            activeServices.push({
+                               id: `role-${barber.id}-${idx}`,
+                               nombre: r,
+                               duracion_min: 20,
+                               barbero_id: barber.id
+                            });
+                          }
                         });
                       }
 
