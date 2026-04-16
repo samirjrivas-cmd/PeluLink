@@ -6,9 +6,9 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 
 // Datos de pago fijo de PeluLink
 const DATOS_PAGO = {
-  banco: 'Banesco',
-  ci: 'V-28.456.321',
-  telefono: '0412-555-8899',
+  banco: 'Banco de Venezuela',
+  ci: 'V-16.486.647',
+  telefono: '0424-802-7700',
   titular: 'PeluLink C.A.'
 };
 
@@ -181,16 +181,43 @@ export default function MiPlan() {
             </div>
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Cédula</p>
-              <p className="text-white font-bold text-lg">{DATOS_PAGO.ci}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-white font-bold text-lg">{DATOS_PAGO.ci}</p>
+                <button 
+                  onClick={() => { navigator.clipboard.writeText(DATOS_PAGO.ci.replace(/\D/g, '')); alert('Cédula copiada al portapapeles'); }}
+                  className="text-gray-500 hover:text-[#D4AF37] transition-colors" title="Copiar Cédula"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                </button>
+              </div>
             </div>
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Teléfono</p>
-              <p className="text-white font-bold text-lg">{DATOS_PAGO.telefono}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-white font-bold text-lg">{DATOS_PAGO.telefono}</p>
+                <button 
+                  onClick={() => { navigator.clipboard.writeText(DATOS_PAGO.telefono.replace(/\D/g, '')); alert('Teléfono copiado al portapapeles'); }}
+                  className="text-gray-500 hover:text-[#D4AF37] transition-colors" title="Copiar Teléfono"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                </button>
+              </div>
             </div>
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Titular</p>
               <p className="text-white font-bold text-lg">{DATOS_PAGO.titular}</p>
             </div>
+          </div>
+
+          <div className="mt-6 border-t border-gray-800 pt-4">
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Pagar directamente con 1 Clic (Formato BDV)</p>
+            <button 
+              onClick={() => { navigator.clipboard.writeText("0102 16486647 04248027700"); alert('Cadena de Pago Móvil copiada lista para importar'); }}
+              className="w-full bg-[#1a1a1a] border border-gray-700 hover:border-[#D4AF37] rounded-lg p-3 text-white font-mono text-center flex items-center justify-center gap-3 transition-all group shadow-sm hover:shadow-[#D4AF37]/20"
+            >
+              <span>0102 16486647 04248027700</span>
+              <svg className="w-5 h-5 text-gray-500 group-hover:text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+            </button>
           </div>
         </section>
 
