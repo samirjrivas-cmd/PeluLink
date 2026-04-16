@@ -419,6 +419,13 @@ export default function BarbershopPage() {
       if (insertedData && insertedData.length > 0) {
         setConfirmedBookingId(insertedData[0].id);
         setStep(3);
+
+        // Validación Token: Alertar al cliente si bloqueó notificaciones
+        if (!fcmToken) {
+          setTimeout(() => {
+            alert('Reserva lista, pero activa las notificaciones para recibir recordatorios');
+          }, 300);
+        }
       } else {
         alert('Reserva guardada, pero no pudimos recuperar el ID');
         setSelectedBarber(null);
