@@ -378,6 +378,17 @@ export default function BarbershopPage() {
         return;
       }
 
+      // Pedir permisos y obtener token Push de forma silenciosa para el usuario
+      let fcmToken = localStorage.getItem('fcm_token');
+      if (!fcmToken) {
+        try {
+          const { requestFirebaseNotificationPermission } = await import('../firebase.js');
+          fcmToken = await requestFirebaseNotificationPermission();
+        } catch (e) {
+          console.warn('FCM no soportado o denegado', e);
+        }
+      }
+
       // 3. Insert ALL blocks into reservas
       const insertRows = blockTimes.map((hora, idx) => ({
         barberia_id: shop.id,
@@ -387,8 +398,11 @@ export default function BarbershopPage() {
         cliente_nombre: clientName,
         cliente_telefono: sanitizedClientPhone,
         servicio: selectedService + (bloquesNecesarios > 1 ? ` (${idx + 1}/${bloquesNecesarios})` : ''),
+        fcm_token: fcmToken,
         status: 'Confirmada'
       }));
+
+      console.log('Sending FCM Token:', fcmToken);
 
       const { data: insertedData, error } = await supabase
         .from('reservas')

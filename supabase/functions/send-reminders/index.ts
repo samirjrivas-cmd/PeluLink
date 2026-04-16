@@ -56,10 +56,14 @@ serve(async (req) => {
     const remindersToUpdate = []
     const notificationPromises = []
 
-    // Constantes de Twilio (Opción A - Sugerida por el usuario)
+    // Constantes FCM y Twilio
     const twilioSid = Deno.env.get('TWILIO_ACCOUNT_SID')
     const twilioToken = Deno.env.get('TWILIO_AUTH_TOKEN')
     const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER')
+    
+    // Requiere la Firebase Server Key legada (para simplificar en Edge Function) 
+    // Opcionalmente se puede usar google-auth-library para HTTP v1
+    const fcmServerKey = Deno.env.get('FCM_SERVER_KEY')
 
     for (const res of reservas) {
       const slotMins = timeToMinutes(res.hora)
@@ -68,46 +72,76 @@ serve(async (req) => {
       // Calcular diferencia en minutos (Cita - Ahora)
       const diff = slotMins - nowMins
 
-      // Si la cita es dentro de los próximos 30-45 minutos (margen por si el cron corre cada 15)
-      // Ajusta este rango si decides que el cron corra con otra frecuencia.
       if (diff > 0 && diff <= 45) {
-        
         const clientName = res.cliente_nombre || 'Cliente'
         const shopName = res.barbershops?.business_name || 'la barbería'
         const phone = res.cliente_telefono
+        const fcmToken = res.fcm_token
 
-        const msgText = `¡Hola ${clientName}! 💈 Te recordamos que tu cita en ${shopName} es en 30 minutos. ¡Ya nos estamos preparando para recibirte! 🚀`
+        const msgTitle = "¡Tu cita se acerca! 💈"
+        const msgText = `¡Hola ${clientName}! Te recordamos que tu cita en ${shopName} es en 30 minutos. ¡Ya nos estamos preparando para recibirte! 🚀`
         
-        console.log(`📩 Preparando SMS/WS para: ${phone}...`)
+        console.log(`📩 Procesando alerta para: ${clientName}...`)
 
-        // Enviar vía Twilio
-        if (twilioSid && twilioToken && twilioPhone && phone) {
-           const toPhone = phone.startsWith('+') ? phone : '+' + phone
+        // 1. PRIORIDAD: FCM PUSH NOTIFICATIONS (Gratuito)
+        if (fcmToken && fcmServerKey) {
+          console.log("Enviando Push Notification (FCM)...");
+          const fcmProm = fetch('https://fcm.googleapis.com/fcm/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `key=${fcmServerKey}`
+            },
+            body: JSON.stringify({
+              to: fcmToken,
+              notification: {
+                title: msgTitle,
+                body: msgText,
+                icon: '/vite.svg'
+              }
+            })
+          })
+          .then(resp => resp.json())
+          .then(data => console.log('FCM Success:', data))
+          .catch(err => console.error('FCM Error:', err));
+          
+          notificationPromises.push(fcmProm);
+        } else if (!fcmToken) {
+          console.log(`⚠️ Cliente ${clientName} no tiene FCM Token guardado.`);
+        }
 
-           const twilioParams = new URLSearchParams({
-               To: toPhone,
-               From: twilioPhone,
-               Body: msgText,
-           })
-
-           const twilioProm = fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
-               method: 'POST',
-               headers: {
-                 'Content-Type': 'application/x-www-form-urlencoded',
-                 'Authorization': 'Basic ' + btoa(`${twilioSid}:${twilioToken}`)
-               },
-               body: twilioParams.toString()
-           })
-           .then(resp => resp.json())
-           .then(data => {
-               if (data.error_message) console.error("❌ Twilio Error:", data.error_message)
-               else console.log("✅ Twilio SMS/WS Enviado:", data.sid)
-           })
-           .catch(e => console.error('Error de red al llamar a Twilio:', e))
-           
-           notificationPromises.push(twilioProm)
-        } else {
-           console.warn(`⚠️ Variables de entorno TWILIO faltantes, simulando mensaje a [${phone}]: ${msgText}`)
+        // 2. BACKUP: SMS VÍA TWILIO (Solo Plan Premium)
+        const isPremium = res.barbershops?.plan?.toLowerCase() === 'premium' || res.barbershops?.is_premium;
+        
+        if (isPremium) {
+          if (twilioSid && twilioToken && twilioPhone && phone) {
+             const toPhone = phone.startsWith('+') ? phone : '+' + phone
+  
+             const twilioParams = new URLSearchParams({
+                 To: toPhone,
+                 From: twilioPhone,
+                 Body: msgText,
+             })
+  
+             const twilioProm = fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+                 method: 'POST',
+                 headers: {
+                   'Content-Type': 'application/x-www-form-urlencoded',
+                   'Authorization': 'Basic ' + btoa(`${twilioSid}:${twilioToken}`)
+                 },
+                 body: twilioParams.toString()
+             })
+             .then(resp => resp.json())
+             .then(data => {
+                 if (data.error_message) console.error("❌ Twilio Error:", data.error_message)
+                 else console.log("✅ Twilio Premium SMS Enviado:", data.sid)
+             })
+             .catch(e => console.error('Error Twilio:', e))
+             
+             notificationPromises.push(twilioProm)
+          } else {
+             console.warn(`⚠️ Variables TWILIO faltantes, el cliente es Premium pero no se mandó el SMS a [${phone}].`);
+          }
         }
 
         remindersToUpdate.push(res.id)
