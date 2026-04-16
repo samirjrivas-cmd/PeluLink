@@ -201,6 +201,16 @@ export default function OwnerDashboard() {
       if (error) {
         alert('Error al guardar especialidad: ' + error.message);
       } else {
+        // Auto-reflejar en servicios para que aparezca en superbase
+        await supabase.from('servicios').insert([{
+           id: crypto.randomUUID(),
+           barberia_id: shop.id,
+           barbero_id: null,
+           nombre: newService,
+           duracion_min: 20,
+           activo: true
+        }]);
+
         setShop({ ...shop, services: updatedServices });
         setNuevaEspecialidad('');
         alert('Especialidad añadida con éxito.');
@@ -249,23 +259,40 @@ export default function OwnerDashboard() {
 
   const handleSaveServicios = async () => {
     if (!selectedConfigPro) return;
+
+    if (!selectedConfigPro.id) {
+      console.error('Error Crítico: payload descartado', selectedConfigPro);
+      alert('Error: No se detectó el ID del profesional');
+      return;
+    }
+
     setSavingEdit(true);
     try {
-      const upserts = serviciosList.filter(s => s.activo || s.id).map(s => ({
-        ...(s.id ? { id: s.id } : {}),
+      // 1. Limpiamos los servicios previos de este profesional para evitar conflictos
+      await supabase
+        .from('servicios')
+        .delete()
+        .eq('barberia_id', shop.id)
+        .eq('barbero_id', selectedConfigPro.id);
+
+      // 2. Insertamos la nueva selección limpia
+      const inserts = serviciosList.filter(s => s.activo).map(s => ({
+        id: crypto.randomUUID(),
         barberia_id: shop.id,
         barbero_id: selectedConfigPro.id,
         nombre: s.nombre,
         duracion_min: s.duracion_min,
         activo: s.activo
       }));
+
+      console.log('Datos a enviar a la tabla servicios:', inserts);
       
-      if (upserts.length > 0) {
-        const { error } = await supabase.from('servicios').upsert(upserts);
+      if (inserts.length > 0) {
+        const { error } = await supabase.from('servicios').insert(inserts);
         if (error) throw error;
       }
       
-      alert(`Servicios actualizados correctamente para ${selectedConfigPro.name}.`);
+      alert('Cambios guardados con éxito');
       setSelectedConfigPro(null);
     } catch (err) {
       alert('Error guardando servicios: ' + err.message);
@@ -873,7 +900,7 @@ export default function OwnerDashboard() {
                     savingEdit ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
                       : 'bg-gradient-to-r from-purple-500 to-purple-800 text-white hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
                   }`}>
-                  {savingEdit ? 'GUARDANDO...' : '💾 GUARDAR SERVICIOS'}
+                  {savingEdit ? 'Cargando...' : '💾 GUARDAR SERVICIOS'}
                 </button>
               </div>
             )}
