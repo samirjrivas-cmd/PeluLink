@@ -31,6 +31,12 @@ export default function OwnerDashboard() {
   const [savingEspecialidad, setSavingEspecialidad] = useState(false);
   const [loadingModal, setLoadingModal] = useState(false);
 
+  // Business Hours
+  const [modalHorarios, setModalHorarios] = useState(false);
+  const [horariosList, setHorariosList] = useState([]);
+  const [savingHorarios, setSavingHorarios] = useState(false);
+  const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
   // Edit Professional
   const [editingPro, setEditingPro] = useState(null);
   const [editName, setEditName] = useState('');
@@ -125,6 +131,64 @@ export default function OwnerDashboard() {
       .order('name', { ascending: true });
     setProfesionalesList(data || []);
     setLoadingModal(false);
+  };
+
+  // ==========================================
+  // MODAL: HORARIOS
+  // ==========================================
+  const openModalHorarios = async () => {
+    if (!shop) return;
+    setModalHorarios(true);
+    setLoadingModal(true);
+    try {
+      const { data } = await supabase
+        .from('business_hours')
+        .select('*')
+        .eq('barberia_id', shop.id);
+        
+      const loadedData = data || [];
+      const defaults = DIAS_SEMANA.map(dia => {
+        const existing = loadedData.find(h => h.dia_semana === dia);
+        return existing || {
+          dia_semana: dia,
+          activo: true,
+          hora_apertura: '09:00',
+          hora_cierre: '18:00'
+        };
+      });
+      setHorariosList(defaults);
+    } catch {
+      alert('Error al cargar horarios.');
+    } finally {
+      setLoadingModal(false);
+    }
+  };
+
+  const handleSaveHorarios = async () => {
+    setSavingHorarios(true);
+    try {
+      // Upsert cleaning old data
+      await supabase.from('business_hours').delete().eq('barberia_id', shop.id);
+
+      const inserts = horariosList.map(h => ({
+        id: crypto.randomUUID(),
+        barberia_id: shop.id,
+        dia_semana: h.dia_semana,
+        activo: h.activo,
+        hora_apertura: h.hora_apertura,
+        hora_cierre: h.hora_cierre
+      }));
+
+      const { error } = await supabase.from('business_hours').insert(inserts);
+      if (error) throw error;
+      
+      alert('Horarios guardados exitosamente');
+      setModalHorarios(false);
+    } catch (err) {
+      alert('Error guardando horarios: ' + err.message);
+    } finally {
+      setSavingHorarios(false);
+    }
   };
 
   // ==========================================
@@ -530,6 +594,14 @@ export default function OwnerDashboard() {
             <span className="text-gray-600 text-xl group-hover:text-purple-400 transition-colors">→</span>
           </button>
 
+          <button onClick={openModalHorarios} className="w-full bg-[#111] border border-gray-800 hover:border-yellow-400/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(250,204,21,0.05)]">
+            <div className="w-14 h-14 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🕒</div>
+            <div className="text-left flex-1">
+              <h3 className="text-lg font-bold text-white group-hover:text-yellow-400 transition-colors">Horarios de Funcionamiento</h3>
+              <p className="text-gray-500 text-xs">Configura tus días y horas de apertura</p>
+            </div>
+            <span className="text-gray-600 text-xl group-hover:text-yellow-400 transition-colors">→</span>
+          </button>
 
           <button onClick={() => navigate(`/mi-plan?negocio=${shop.slug}`)} className="w-full bg-[#111] border border-gray-800 hover:border-[#25D366]/50 rounded-2xl p-6 flex items-center gap-5 transition-all group hover:shadow-[0_0_30px_rgba(37,211,102,0.05)]">
             <div className="w-14 h-14 rounded-xl bg-[#25D366]/10 border border-[#25D366]/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">💰</div>
@@ -804,6 +876,8 @@ export default function OwnerDashboard() {
                     ))
                   )}
 
+
+
                   {/* ADD BUTTON */}
                   <button onClick={startAddPro}
                     className="w-full py-4 border-2 border-dashed border-[#25D366]/40 hover:border-[#25D366] bg-[#25D366]/5 hover:bg-[#25D366]/10 rounded-xl text-[#25D366] font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2 hover:scale-[1.01] active:scale-95">
@@ -956,6 +1030,82 @@ export default function OwnerDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ==========================================
+          MODAL: HORARIOS
+          ========================================== */}
+      {modalHorarios && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-0 animate-[fadeIn_0.2s_ease-out]" onClick={() => setModalHorarios(false)}>
+          <div className="bg-[#111] border border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#151515]">
+              <div>
+                <h3 className="text-xl font-bold text-white">🕒 Horarios de Funcionamiento</h3>
+                <p className="text-[#D4AF37] text-xs font-semibold tracking-wider uppercase mt-1">Días y horas de apertura</p>
+              </div>
+              <button onClick={() => setModalHorarios(false)} className="text-gray-500 hover:text-white p-2 text-lg">✕</button>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              {loadingModal ? (
+                 <div className="flex justify-center p-10"><div className="w-8 h-8 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div></div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {horariosList.map((h, idx) => (
+                    <div key={h.dia_semana} className={`p-4 rounded-xl border transition-all flex items-center justify-between flex-wrap gap-4 ${h.activo ? 'bg-[#1a1a1a] border-[#D4AF37]/30' : 'bg-[#0a0a0a] border-gray-800 opacity-60'}`}>
+                      <div className="flex items-center gap-3 w-1/3">
+                        <input 
+                          type="checkbox" 
+                          checked={h.activo}
+                          onChange={(e) => {
+                            const newArr = [...horariosList];
+                            newArr[idx].activo = e.target.checked;
+                            setHorariosList(newArr);
+                          }}
+                          className="w-5 h-5 accent-[#D4AF37] rounded cursor-pointer"
+                        />
+                        <span className={`font-bold uppercase tracking-wider text-sm ${h.activo ? 'text-white' : 'text-gray-500'}`}>{h.dia_semana}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 flex-1 justify-end">
+                        <input 
+                          type="time" 
+                          disabled={!h.activo}
+                          value={h.hora_apertura}
+                          onChange={(e) => {
+                            const newArr = [...horariosList];
+                            newArr[idx].hora_apertura = e.target.value;
+                            setHorariosList(newArr);
+                          }}
+                          className="bg-black border border-gray-700 disabled:border-gray-800 rounded p-1.5 text-xs text-white disabled:text-gray-600 focus:border-[#D4AF37] outline-none"
+                        />
+                        <span className="text-gray-500 text-xs font-bold">A</span>
+                        <input 
+                          type="time" 
+                          disabled={!h.activo}
+                          value={h.hora_cierre}
+                          onChange={(e) => {
+                            const newArr = [...horariosList];
+                            newArr[idx].hora_cierre = e.target.value;
+                            setHorariosList(newArr);
+                          }}
+                          className="bg-black border border-gray-700 disabled:border-gray-800 rounded p-1.5 text-xs text-white disabled:text-gray-600 focus:border-[#D4AF37] outline-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <button 
+                    onClick={handleSaveHorarios}
+                    disabled={savingHorarios}
+                    className="w-full mt-4 py-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#8C6D23] text-black font-extrabold uppercase tracking-widest text-sm hover:scale-[1.02] transition-transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {savingHorarios ? 'Guardando...' : 'Guardar Horarios'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
