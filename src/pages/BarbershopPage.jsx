@@ -59,6 +59,7 @@ export default function BarbershopPage() {
   const [selectedServiceBarberId, setSelectedServiceBarberId] = useState(null);
   const [reservasOcupadas, setReservasOcupadas] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [businessHours, setBusinessHours] = useState([]);
 
   // Servicios con duración (tabla servicios)
   const [serviciosList, setServiciosList] = useState([]);
@@ -191,6 +192,16 @@ export default function BarbershopPage() {
               console.log('[PeluLink] Usando servicios legacy (20min default):', legacy.map(s => s.nombre));
             }
           }
+
+          // Fetch Business Hours
+          const { data: hoursData } = await supabase
+            .from('business_hours')
+            .select('*')
+            .eq('barberia_id', shopData.id);
+            
+          if (hoursData && hoursData.length > 0) {
+            setBusinessHours(hoursData);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -223,11 +234,38 @@ export default function BarbershopPage() {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
-  const generateTimeSlots = () => {
+  const getDayFullName = (dateStr) => {
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const d = new Date(dateStr + 'T12:00:00');
+    return days[d.getDay()];
+  };
+
+  const isDayClosed = (dateStr) => {
+    if (!businessHours || businessHours.length === 0) return false;
+    const dayName = getDayFullName(dateStr);
+    const conf = businessHours.find(h => h.dia_semana === dayName);
+    if (conf && !conf.activo) return true;
+    return false;
+  };
+
+  const generateTimeSlots = (dateStr) => {
+    let startH = 9;
+    let endH = 20; // Default to 8 PM
+    
+    if (dateStr && businessHours && businessHours.length > 0) {
+      const dayName = getDayFullName(dateStr);
+      const conf = businessHours.find(h => h.dia_semana === dayName);
+      if (conf) {
+        if (!conf.activo) return [];
+        if (conf.hora_apertura) startH = parseInt(conf.hora_apertura.split(':')[0], 10);
+        if (conf.hora_cierre) endH = parseInt(conf.hora_cierre.split(':')[0], 10);
+      }
+    }
+
     const slots = [];
-    for (let h = 9; h <= 20; h++) {
+    for (let h = startH; h <= endH; h++) {
       for (let m = 0; m < 60; m += 20) {
-        if (h === 20 && m > 0) break;
+        if (h === endH && m > 0) break;
         const ampm = h >= 12 ? 'PM' : 'AM';
         const displayHour = h % 12 === 0 ? 12 : h % 12;
         slots.push(`${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`);
@@ -235,7 +273,7 @@ export default function BarbershopPage() {
     }
     return slots;
   };
-  const timeSlots = generateTimeSlots();
+  const timeSlots = generateTimeSlots(selectedDate);
 
   const getDayName = (dateStr) => {
     const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -590,21 +628,29 @@ export default function BarbershopPage() {
                 <div className="animate-[slideIn_0.3s_ease-out]">
                   <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">Elige tu Día</h4>
                   <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar mb-8">
-                    {nextDays.map(date => (
+                    {nextDays.map(date => {
+                      const isClosed = isDayClosed(date);
+                      return (
                       <button 
                         key={date}
+                        disabled={isClosed}
                         onClick={() => {
+                          if (isClosed) return;
                           setSelectedDate(date);
                           setSelectedTime('');
                         }}
                         className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-all ${
-                          selectedDate === date ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50'
+                          isClosed 
+                            ? 'bg-[#111] border-gray-800 text-gray-800 opacity-30 cursor-not-allowed'
+                            : selectedDate === date 
+                              ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' 
+                              : 'bg-[#1a1a1a] border-gray-700 text-gray-300 hover:border-[#D4AF37]/50'
                         }`}
                       >
                         <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">{getDayName(date)}</span>
                         <span className="text-xl font-black mt-1">{date.split('-')[2]}</span>
                       </button>
-                    ))}
+                    )})}
                   </div>
 
                   <h4 className="text-sm text-gray-400 font-bold tracking-widest uppercase mb-4">
