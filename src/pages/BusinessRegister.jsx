@@ -3,12 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 const VENEZUELA_LOCATIONS = {
-  'Sucre': ['Mejía', 'Sucre', 'Ribero', 'Mariño', 'Cajigal', 'Benítez', 'Bermúdez', 'Arismendi', 'Andrés Eloy Blanco', 'Andrés Mata', 'Valdez', 'Libertador', 'Cruz Salmerón Acosta', 'Bolívar', 'Soublette'],
+  'Amazonas': ['Atures'],
   'Anzoátegui': ['Sotillo', 'Bolívar', 'Urbaneja', 'Guanta', 'Anaco', 'Aragua', 'Peñalver'],
+  'Apure': ['San Fernando', 'Páez'],
+  'Aragua': ['Girardot', 'Mario Briceño Iragorry', 'Santiago Mariño'],
+  'Barinas': ['Barinas', 'Alberto Arvelo Torrealba'],
+  'Bolívar': ['Caroní', 'Angostura del Orinoco', 'Piar'],
+  'Carabobo': ['Valencia', 'Naguanagua', 'San Diego', 'Puerto Cabello'],
+  'Cojedes': ['Ezequiel Zamora', 'Tinaco'],
+  'Delta Amacuro': ['Tucupita'],
+  'Distrito Capital': ['Libertador'],
+  'Falcón': ['Miranda', 'Carirubana', 'Silva'],
+  'Guárico': ['Juan Germán Roscio', 'Leonardo Infante'],
+  'La Guaira': ['Vargas'],
+  'Lara': ['Iribarren', 'Palavecino', 'Torres'],
+  'Mérida': ['Libertador', 'Alberto Adriani', 'Campo Elías'],
+  'Miranda': ['Sucre', 'Baruta', 'Chacao', 'El Hatillo', 'Guaicaipuro', 'Plaza', 'Zamora'],
   'Monagas': ['Maturín', 'Caripe', 'Piar', 'Ezequiel Zamora', 'Bolívar'],
   'Nueva Esparta': ['Arismendi', 'Maneiro', 'Mariño', 'García', 'Díaz', 'Tubores', 'Macanao', 'Villalba', 'Antolín del Campo'],
-  'Distrito Capital': ['Libertador'],
-  'Miranda': ['Sucre', 'Baruta', 'Chacao', 'El Hatillo', 'Guaicaipuro', 'Plaza', 'Zamora']
+  'Portuguesa': ['Guanare', 'Páez', 'Araure'],
+  'Sucre': ['Mejía', 'Sucre', 'Ribero', 'Mariño', 'Cajigal', 'Benítez', 'Bermúdez', 'Arismendi', 'Andrés Eloy Blanco', 'Andrés Mata', 'Valdez', 'Libertador', 'Cruz Salmerón Acosta', 'Bolívar', 'Soublette'],
+  'Táchira': ['San Cristóbal', 'Cárdenas', 'Torbes'],
+  'Trujillo': ['Valera', 'Trujillo', 'Boconó'],
+  'Yaracuy': ['San Felipe', 'Peña'],
+  'Zulia': ['Maracaibo', 'San Francisco', 'Cabimas', 'Lagunillas']
 };
 
 export default function BusinessRegister() {

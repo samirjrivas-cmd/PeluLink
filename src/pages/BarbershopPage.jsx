@@ -240,32 +240,40 @@ export default function BarbershopPage() {
     return days[d.getDay()];
   };
 
+  const getBusinessHoursForDate = (dateStr) => {
+    if (!businessHours || businessHours.length === 0) return null;
+    const dayName = getDayFullName(dateStr);
+    return businessHours.find(h => h.dia_semana.toUpperCase() === dayName.toUpperCase());
+  };
+
   const isDayClosed = (dateStr) => {
     if (!businessHours || businessHours.length === 0) return false;
-    const dayName = getDayFullName(dateStr);
-    const conf = businessHours.find(h => h.dia_semana === dayName);
+    const conf = getBusinessHoursForDate(dateStr);
     if (conf && !conf.activo) return true;
     return false;
   };
 
   const generateTimeSlots = (dateStr) => {
-    let startH = 9;
-    let endH = 20; // Default to 8 PM
+    const conf = getBusinessHoursForDate(dateStr);
     
-    if (dateStr && businessHours && businessHours.length > 0) {
-      const dayName = getDayFullName(dateStr);
-      const conf = businessHours.find(h => h.dia_semana === dayName);
-      if (conf) {
-        if (!conf.activo) return [];
-        if (conf.hora_apertura) startH = parseInt(conf.hora_apertura.split(':')[0], 10);
-        if (conf.hora_cierre) endH = parseInt(conf.hora_cierre.split(':')[0], 10);
-      }
+    if (conf && !conf.activo) return [];
+
+    let startH = 9;
+    let endH = 20; 
+
+    if (conf) {
+      if (conf.hora_apertura) startH = parseInt(conf.hora_apertura.split(':')[0], 10);
+      if (conf.hora_cierre) endH = parseInt(conf.hora_cierre.split(':')[0], 10);
     }
 
     const slots = [];
+    // Generar horas de inicio válidas (h <= endH)
     for (let h = startH; h <= endH; h++) {
       for (let m = 0; m < 60; m += 20) {
-        if (h === endH && m > 0) break;
+        // La última cita debe terminar como máximo a las `endH:00`
+        // Por ende, NINGUNA cita puede iniciar a las `endH:00` ni después.
+        if (h === endH) break; 
+        
         const ampm = h >= 12 ? 'PM' : 'AM';
         const displayHour = h % 12 === 0 ? 12 : h % 12;
         slots.push(`${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`);
@@ -363,10 +371,16 @@ export default function BarbershopPage() {
     const startMins = timeToMinutes(startTime);
     if (startMins < 0) return false;
 
+    let endMins = 1200; // Default to 20:00 (1200 mins)
+    const conf = getBusinessHoursForDate(selectedDate);
+    if (conf && conf.hora_cierre) {
+      endMins = parseInt(conf.hora_cierre.split(':')[0], 10) * 60;
+    }
+
     for (let i = 0; i < bloquesNecesarios; i++) {
       const blockMins = startMins + (i * 20);
-      // Don't exceed 8:00 PM (20:00 = 1200 mins)
-      if (blockMins >= 1200 + 20) return false;
+      // El bloque actual termina en blockMins + 20. No puede exceder la hora de cierre.
+      if (blockMins + 20 > endMins) return false;
       const blockTime = normalizeHora(minutesToTime(blockMins));
       if (reservasOcupadas.some(h => h === blockTime)) return false;
     }
