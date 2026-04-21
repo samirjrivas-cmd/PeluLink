@@ -235,15 +235,17 @@ export default function BarbershopPage() {
     return `${year}-${month}-${day}`;
   });
   const getDayFullName = (dateStr) => {
+    if (!dateStr) return '';
     const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const d = new Date(dateStr + 'T12:00:00');
-    return days[d.getDay()];
+    return days[d.getDay()] || '';
   };
 
   const getBusinessHoursForDate = (dateStr) => {
-    if (!businessHours || businessHours.length === 0) return null;
+    if (!businessHours || businessHours.length === 0 || !dateStr) return null;
     const dayName = getDayFullName(dateStr);
-    return businessHours.find(h => h.dia_semana.toUpperCase() === dayName.toUpperCase());
+    if (!dayName) return null;
+    return businessHours.find(h => h.dia_semana?.toUpperCase() === dayName?.toUpperCase());
   };
 
   const isDayClosed = (dateStr) => {
@@ -254,32 +256,40 @@ export default function BarbershopPage() {
   };
 
   const generateTimeSlots = (dateStr) => {
-    const conf = getBusinessHoursForDate(dateStr);
+    if (!businessHours) return []; // Seguridad inicial
+    if (!dateStr) return [];
     
-    if (conf && !conf.activo) return [];
+    try {
+      const conf = getBusinessHoursForDate(dateStr);
+      
+      if (conf && !conf.activo) return [];
 
-    let startH = 9;
-    let endH = 20; 
+      let startH = 9;
+      let endH = 20; 
 
-    if (conf) {
-      if (conf.hora_apertura) startH = parseInt(conf.hora_apertura.split(':')[0], 10);
-      if (conf.hora_cierre) endH = parseInt(conf.hora_cierre.split(':')[0], 10);
-    }
-
-    const slots = [];
-    // Generar horas de inicio válidas (h <= endH)
-    for (let h = startH; h <= endH; h++) {
-      for (let m = 0; m < 60; m += 20) {
-        // La última cita debe terminar como máximo a las `endH:00`
-        // Por ende, NINGUNA cita puede iniciar a las `endH:00` ni después.
-        if (h === endH) break; 
-        
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const displayHour = h % 12 === 0 ? 12 : h % 12;
-        slots.push(`${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`);
+      if (conf) {
+        if (conf.hora_apertura) startH = parseInt(conf.hora_apertura.split(':')[0], 10);
+        if (conf.hora_cierre) endH = parseInt(conf.hora_cierre.split(':')[0], 10);
       }
+
+      const slots = [];
+      // Generar horas de inicio válidas (h <= endH)
+      for (let h = startH; h <= endH; h++) {
+        for (let m = 0; m < 60; m += 20) {
+          // La última cita debe terminar como máximo a las `endH:00`
+          // Por ende, NINGUNA cita puede iniciar a las `endH:00` ni después.
+          if (h === endH) break; 
+          
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const displayHour = h % 12 === 0 ? 12 : h % 12;
+          slots.push(`${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`);
+        }
+      }
+      return slots;
+    } catch (error) {
+      console.error("[PeluLink] Fallo generando horarios:", error);
+      return ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM"];
     }
-    return slots;
   };
   const timeSlots = generateTimeSlots(selectedDate);
 
